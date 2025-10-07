@@ -4,11 +4,9 @@
   <meta charset="UTF-8">
   <title>File Storage</title>
   <script type="module">
-    // Import Firebase SDKs
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
     import { getStorage, ref, uploadBytes, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
 
-    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyAlt-D7PqYxPUs8t2nmnzkO13eriWp_UN0",
       authDomain: "mystorage-5e7af.firebaseapp.com",
@@ -18,16 +16,14 @@
       appId: "1:206631078999:web:57702614224b3c9e996712"
     };
 
-    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const storage = getStorage(app);
 
-    // Redirect if not logged in
-    if(localStorage.getItem("loggedIn") !== "true") {
+    // Redirect if not logged in (sessionStorage)
+    if(sessionStorage.getItem("loggedIn") !== "true") {
       window.location.href = "index.html";
     }
 
-    // Upload file function with error logging
     async function uploadFile() {
       const file = document.getElementById("fileInput").files[0];
       if(!file) return alert("Select a file first!");
@@ -42,7 +38,6 @@
       }
     }
 
-    // List all files in the storage bucket
     async function listFiles() {
       const listRef = ref(storage, "");
       try {
