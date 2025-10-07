@@ -3,353 +3,192 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>My Storage — Manager</title>
-
+<title>My Storage — Dashboard</title>
 <script type="module">
-/*
-  Single-file Supabase storage manager
-  - Login view id: 12321
-  - Uploads stored under uploads/ in bucket my-storage
-  - Replace SUPABASE_URL / SUPABASE_ANON_KEY with yours if needed
-*/
-
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const SUPABASE_URL = 'https://dnuvhvcnwmbjttmitcwr.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI';
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-// expose for debugging in console if needed
 window.supabase = supabase;
 
 const BUCKET = 'my-storage';
-const UPLOAD_FOLDER = 'uploads/'; // files will be uploaded to this folder
+const UPLOAD_FOLDER = 'uploads/';
 const VIEW_ID = '12321';
 
-// UI helpers
-function $ (sel){ return document.querySelector(sel); }
-function showError(msg){
-  const el = $('#uploadError');
-  if(!el) return;
-  el.textContent = msg || '';
-}
+function $(sel){ return document.querySelector(sel); }
+function showError(msg){ $('#uploadError').textContent = msg || ''; }
 
-// Upload with live progress (attempt using supabase-js onUploadProgress; fallback to instant)
 async function doUpload(file){
   if(!file) return showError('No file selected.');
   showError('');
   const progressContainer = $('#progressContainer');
   const progressBar = $('#uploadProgress');
   const progressText = $('#progressText');
-
   progressBar.value = 0;
   progressText.textContent = '0%';
   progressContainer.style.display = 'flex';
-
   try {
-    // supabase-js supports onUploadProgress in the browser (provided by underlying fetch/XHR).
-    // We'll pass onUploadProgress callback to get live percentage if supported.
     const path = `${UPLOAD_FOLDER}${file.name}`;
-
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, file, {
-        upsert: true,
-        // this callback may be invoked by the client for progress updates in supported envs
-        onUploadProgress: (progressEvent) => {
-          try {
-            if (progressEvent && progressEvent.lengthComputable) {
-              const pct = Math.round((progressEvent.loaded / progressEvent.total) * 100);
-              progressBar.value = pct;
-              progressText.textContent = pct + '%';
-            }
-          } catch (e) {
-            // ignore progress errors
-          }
-        }
-      });
-
-    if (error) throw error;
-
-    // ensure full
+    const { data, error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert:true });
+    if(error) throw error;
     progressBar.value = 100;
     progressText.textContent = '100%';
-
-    // small pause so user sees 100%
-    setTimeout(()=> {
-      progressContainer.style.display = 'none';
-      listFiles();
-    }, 450);
-
-  } catch(err) {
-    progressContainer.style.display = 'none';
-    showError('Upload failed: ' + (err.message || err));
-    console.error('Upload error:', err);
+    setTimeout(()=> { progressContainer.style.display='none'; listFiles(); }, 400);
+  } catch(err){
+    progressContainer.style.display='none';
+    showError('Upload failed: '+(err.message||err));
+    console.error(err);
   }
 }
 
-// list files in uploads/ and render
 async function listFiles(){
   const container = $('#fileList');
   container.innerHTML = 'Loading files...';
   showError('');
-  try {
-    const { data: files, error } = await supabase.storage.from(BUCKET).list(UPLOAD_FOLDER, { limit: 200, offset: 0 });
-    if (error) throw error;
+  try{
+    const { data: files, error } = await supabase.storage.from(BUCKET).list(UPLOAD_FOLDER, { limit:200 });
+    if(error) throw error;
     container.innerHTML = '';
-    if (!files || files.length === 0) {
-      container.innerHTML = '<div class="empty">No files uploaded yet.</div>';
-      return;
-    }
-
-    // sort by name (or you could fetch metadata for timestamps if desired)
-    files.sort((a,b)=> a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:'base'}));
-
-    for (const f of files){
-      const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(`${UPLOAD_FOLDER}${f.name}`).data.publicUrl;
-      const card = document.createElement('div');
-      card.className = 'file-card';
-      card.innerHTML = `
+    if(!files || files.length===0){ container.innerHTML='<div class="empty">No files uploaded yet.</div>'; return; }
+    files.sort((a,b)=>a.name.localeCompare(b.name,{numeric:true,sensitivity:'base'}));
+    for(const f of files){
+      const filePath = `${UPLOAD_FOLDER}${f.name}`;
+      const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+      const isImg = /\.(jpe?g|png|gif|webp)$/i.test(f.name);
+      const card = document.createElement('div'); card.className='file-card';
+      card.innerHTML=`
+        ${isImg?`<img src="${publicData.publicUrl}" class="preview" />`:''}
         <div class="file-name" title="${f.name}">${f.name}</div>
         <div class="file-actions">
-          <a class="btn small" target="_blank" rel="noreferrer" href="${publicUrl}">Download</a>
+          <a class="btn small" target="_blank" href="${publicData.publicUrl}">Download</a>
           <button class="btn small danger" data-f="${f.name}">Delete</button>
+          <button class="btn small rename" data-f="${f.name}">Rename</button>
         </div>
       `;
       container.appendChild(card);
     }
-  } catch(err) {
-    console.error('listFiles error', err);
-    container.innerHTML = 'Failed to load files: ' + (err.message || err);
-  }
+  }catch(err){ container.innerHTML='Failed to load files: '+(err.message||err); console.error(err);}
 }
 
-// delete
 async function deleteFile(fileName){
   if(!confirm(`Delete "${fileName}"?`)) return;
   showError('');
-  try {
-    const { error } = await supabase.storage.from(BUCKET).remove([`${UPLOAD_FOLDER}${fileName}`]);
-    if (error) throw error;
-    listFiles();
-  } catch(err) {
-    showError('Delete failed: ' + (err.message || err));
-    console.error('deleteFile error', err);
-  }
+  try{ const { error } = await supabase.storage.from(BUCKET).remove([`${UPLOAD_FOLDER}${fileName}`]); if(error) throw error; listFiles(); }
+  catch(err){ showError('Delete failed: '+(err.message||err)); console.error(err);}
 }
 
-// drag & drop setup
+async function renameFile(oldName){
+  const newName = prompt('Enter new name for '+oldName, oldName);
+  if(!newName || newName===oldName) return;
+  try{
+    const oldPath = `${UPLOAD_FOLDER}${oldName}`;
+    const newPath = `${UPLOAD_FOLDER}${newName}`;
+    const { data, error } = await supabase.storage.from(BUCKET).move(oldPath,newPath);
+    if(error) throw error;
+    listFiles();
+  }catch(err){ showError('Rename failed: '+(err.message||err)); console.error(err);}
+}
+
 function setupDragDrop(){
   const dropArea = $('#fileList');
-  if(!dropArea) return;
-  dropArea.addEventListener('dragover', e=>{
-    e.preventDefault();
-    dropArea.classList.add('dragover');
-  });
-  dropArea.addEventListener('dragleave', e=>{
-    e.preventDefault();
-    dropArea.classList.remove('dragover');
-  });
-  dropArea.addEventListener('drop', e=>{
-    e.preventDefault();
-    dropArea.classList.remove('dragover');
-    const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    if(file) doUpload(file);
-  });
+  dropArea.addEventListener('dragover', e=>{ e.preventDefault(); dropArea.classList.add('dragover'); });
+  dropArea.addEventListener('dragleave', e=>{ e.preventDefault(); dropArea.classList.remove('dragover'); });
+  dropArea.addEventListener('drop', e=>{ e.preventDefault(); dropArea.classList.remove('dragover'); const file=e.dataTransfer.files[0]; if(file) doUpload(file); });
 }
 
-// login / logout
 function doLogin(){
-  const input = $('#viewId').value.trim();
-  const emsg = $('#loginError');
-  if(input === VIEW_ID){
-    sessionStorage.setItem('loggedIn','true');
-    renderAppState();
-  } else {
-    emsg.textContent = 'Incorrect View ID';
-  }
+  const val = $('#viewId').value.trim();
+  if(val===VIEW_ID){ sessionStorage.setItem('loggedIn','true'); renderApp(); }
+  else $('#loginError').textContent='Incorrect View ID';
 }
 
-function doLogout(){
-  sessionStorage.removeItem('loggedIn');
-  renderAppState();
+function doLogout(){ sessionStorage.removeItem('loggedIn'); renderApp(); }
+
+function renderApp(){
+  const logged = sessionStorage.getItem('loggedIn')==='true';
+  $('#loginPage').style.display = logged?'none':'flex';
+  $('#appPage').style.display = logged?'flex':'none';
+  if(logged){ listFiles(); if(window._refreshInterval) clearInterval(window._refreshInterval); window._refreshInterval=setInterval(listFiles,5000);}
+  else { if(window._refreshInterval){ clearInterval(window._refreshInterval); window._refreshInterval=null; } }
 }
 
-// render login / app based on session
-function renderAppState(){
-  const logged = sessionStorage.getItem('loggedIn') === 'true';
-  $('#loginPage').style.display = logged ? 'none' : 'flex';
-  $('#appPage').style.display = logged ? 'flex' : 'none';
-  if(logged){
-    listFiles();
-    // start auto-refresh (clear any existing interval)
-    if(window._refreshInterval) clearInterval(window._refreshInterval);
-    window._refreshInterval = setInterval(listFiles, 5000);
-  } else {
-    if(window._refreshInterval) { clearInterval(window._refreshInterval); window._refreshInterval = null; }
-  }
-}
-
-// wire UI on DOM ready
-window.addEventListener('load', ()=> {
-  // elements
-  const uploadBtn = $('#uploadBtn');
-  const fileInput = $('#fileInput');
-  const logoutBtn = $('#logoutBtn');
-  const loginBtn = $('#loginBtn');
-  const fileList = $('#fileList');
-
-  // login
-  loginBtn.addEventListener('click', doLogin);
-  $('#viewId').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') doLogin(); });
-
-  // upload via input
-  uploadBtn.addEventListener('click', ()=>{
-    const file = fileInput.files && fileInput.files[0];
-    if(file) doUpload(file);
+window.addEventListener('load',()=>{
+  $('#loginBtn').addEventListener('click',doLogin);
+  $('#viewId').addEventListener('keydown',e=>{if(e.key==='Enter') doLogin();});
+  $('#logoutBtn').addEventListener('click',doLogout);
+  $('#uploadBtn').addEventListener('click',()=>{const f=$('#fileInput').files[0]; if(f) doUpload(f);});
+  $('#fileInput').addEventListener('change',()=>{$('#selectedName').textContent=$('#fileInput').files[0].name;});
+  $('#fileList').addEventListener('click',e=>{
+    const del = e.target.closest('button.danger'); if(del) deleteFile(del.dataset.f);
+    const ren = e.target.closest('button.rename'); if(ren) renameFile(ren.dataset.f);
   });
-  fileInput.addEventListener('change', ()=> {
-    // show filename (optional)
-    const f = fileInput.files && fileInput.files[0];
-    if(f) $('#selectedName').textContent = f.name;
-  });
-
-  // delete handler (event delegation)
-  fileList.addEventListener('click', (e)=>{
-    const btn = e.target.closest('button[data-f]');
-    if(btn){
-      const name = btn.getAttribute('data-f');
-      deleteFile(name);
-    }
-  });
-
-  // logout
-  logoutBtn.addEventListener('click', ()=> doLogout());
-
-  // setup drag-drop area
   setupDragDrop();
-
-  // initial render
-  renderAppState();
+  renderApp();
 });
 </script>
 
 <style>
-:root{
-  --bg1:#1e1e2f;
-  --bg2:#2c2c3e;
-  --card:#33334d;
-  --accent:#ffcc00;
-  --muted:#aaa;
-  --danger:#ff4c4c;
-  --glass: rgba(255,255,255,0.03);
-  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial;
-}
-html,body{height:100%;margin:0;background:linear-gradient(160deg,var(--bg1),var(--bg2));color:#fff}
-.app-wrap{height:100%;display:flex;align-items:center;justify-content:center;padding:28px}
+:root{--bg:#1e1e2f;--bg2:#2c2c3e;--accent:#ffcc00;--card:#2c2c44;--muted:#aaa;--danger:#ff4c4c;font-family:Segoe UI,sans-serif;}
+html,body{height:100%;margin:0;background:linear-gradient(160deg,var(--bg),var(--bg2));color:#fff;}
+.app-wrap{height:100%;display:flex;align-items:center;justify-content:center;padding:28px;}
 
-/* Login Page */
+/* LOGIN */
 #loginPage{display:flex;align-items:center;justify-content:center;flex-direction:column;width:100%}
-.login-box{background:var(--card);padding:36px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,0.5);width:360px;text-align:center}
-.login-box h1{color:var(--accent);margin:0 0 18px;font-size:24px}
-.input{width:100%;padding:12px;border-radius:8px;border:none;background:#444;color:#fff;margin-bottom:12px;outline:none}
-.btn{background:var(--accent);color:#111;padding:10px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
-.btn.secondary{background:#444;color:#fff}
-.small{padding:6px 8px;font-size:13px}
-.error{color:var(--danger);margin-top:10px}
+.login-box{background:var(--card);padding:36px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,0.5);width:360px;text-align:center;backdrop-filter:blur(6px);}
+.login-box h1{color:var(--accent);margin:0 0 18px;font-size:26px;}
+.input{width:100%;padding:12px;border-radius:8px;border:none;background:#444;color:#fff;margin-bottom:12px;outline:none;}
+.btn{background:var(--accent);color:#111;padding:10px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:600;}
+.btn.secondary{background:#444;color:#fff;}
+.small{padding:6px 8px;font-size:13px;}
+.error{color:var(--danger);margin-top:10px;min-height:18px;}
 
-/* App Page - layout */
-#appPage{display:flex;width:100%;height:100%;max-width:1200px;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
-nav.side{width:240px;background:linear-gradient(180deg,var(--card),#2e2e45);padding:28px;display:flex;flex-direction:column;gap:12px}
-nav.side h2{color:var(--accent);margin:0 0 6px}
-nav.side .desc{color:var(--muted);font-size:13px;margin-bottom:8px}
-nav.side .action{margin-top:8px}
-nav.side input[type=file]{display:none}
-nav.side .upload-row{display:flex;gap:10px;align-items:center}
-#selectedName{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-/* Main content */
-.main{flex:1;padding:28px;position:relative;background:linear-gradient(180deg, rgba(0,0,0,0.02), transparent)}
-.main h1{color:var(--accent);margin:0 0 18px}
-#fileList{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;align-content:start;padding-bottom:80px}
-.file-card{background:var(--card);padding:14px;border-radius:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 6px 18px rgba(0,0,0,0.4)}
-.file-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.file-actions{display:flex;gap:8px;align-items:center}
-.btn.link{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#fff;padding:8px 10px;border-radius:8px}
-.btn.danger{background:var(--danger);color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
-
-/* empty */
-.empty{color:var(--muted);padding:20px;border-radius:8px;background:var(--glass);text-align:center}
-
-/* Drag over */
-#fileList.dragover{border:2px dashed var(--accent);padding:12px;border-radius:10px}
-
-/* Centered progress overlay */
-#progressContainer{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48%;min-width:320px;background:linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0.55));padding:18px;border-radius:12px;display:none;flex-direction:column;align-items:center;z-index:40;box-shadow:0 10px 40px rgba(0,0,0,0.6)}
-progress#uploadProgress{width:100%;height:18px;border-radius:8px;appearance:none;margin-bottom:10px}
-progress#uploadProgress::-webkit-progress-bar{background:#444;border-radius:8px}
-progress#uploadProgress::-webkit-progress-value{background:var(--accent);border-radius:8px}
-#progressText{color:var(--accent);font-weight:700}
-#uploadError{color:var(--danger);margin-top:8px}
-
-/* responsive */
-@media (max-width:800px){
-  nav.side{display:none}
-  #progressContainer{width:90%}
-  #fileList{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
-  .login-box{width:90%}
-}
+/* APP */
+#appPage{display:flex;width:100%;height:100%;max-width:1200px;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6);}
+nav.side{width:240px;background:linear-gradient(180deg,var(--card),#2e2e45);padding:28px;display:flex;flex-direction:column;gap:12px;}
+nav.side h2{color:var(--accent);margin:0 0 6px;}
+nav.side .desc{color:var(--muted);font-size:13px;margin-bottom:8px;}
+nav.side .upload-row{display:flex;gap:10px;align-items:center;}
+#selectedName{font-size:13px;color:var(--muted);}
+main{flex:1;padding:20px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:14px;background:var(--bg2);position:relative;}
+.file-card{background:var(--card);padding:12px;border-radius:10px;min-width:140px;max-width:180px;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;}
+.file-card img.preview{width:100%;height:100px;object-fit:cover;border-radius:6px;}
+.file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;text-align:center;font-size:14px;}
+.file-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+.dragover{outline:3px dashed var(--accent);border-radius:10px;}
+.empty{text-align:center;color:var(--muted);width:100%;margin-top:40px;}
+#progressContainer{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);padding:20px;border-radius:12px;display:none;flex-direction:column;align-items:center;gap:10px;z-index:1000;}
+#uploadProgress{width:200px;height:12px;border-radius:6px;}
+#progressText{color:var(--accent);font-weight:600;}
 </style>
-</head>
 
-<body>
-  <div class="app-wrap">
-    <!-- LOGIN -->
-    <div id="loginPage">
-      <div class="login-box">
-        <h1>My Storage</h1>
-        <input id="viewId" class="input" placeholder="Enter View ID (ask admin)" />
-        <div style="display:flex;gap:10px;justify-content:center">
-          <button id="loginBtn" class="btn">Enter</button>
-        </div>
-        <div id="loginError" class="error" style="height:18px;margin-top:10px"></div>
-      </div>
-    </div>
-
-    <!-- APP -->
-    <div id="appPage" style="display:none">
-      <nav class="side">
-        <h2>My Storage</h2>
-        <div class="desc">Shared storage. Login with the View ID to manage files.</div>
-
-        <div class="upload-row">
-          <label class="btn small" for="fileInput">Choose file</label>
-          <input id="fileInput" type="file" />
-          <button id="uploadBtn" class="btn small" onclick="document.getElementById('fileInput').click()">Browse</button>
-        </div>
-        <div id="selectedName" title="Selected file name"></div>
-
-        <div class="action">
-          <button id="uploadBtn" class="btn" onclick="document.getElementById('fileInput').dispatchEvent(new Event('change'))">Upload</button>
-        </div>
-
-        <div style="margin-top:auto">
-          <button id="logoutBtn" class="btn secondary small">Logout</button>
-        </div>
-      </nav>
-
-      <main class="main">
-        <h1>Files</h1>
-        <div id="fileList"></div>
-
-        <!-- progress overlay -->
-        <div id="progressContainer">
-          <progress id="uploadProgress" value="0" max="100"></progress>
-          <div id="progressText">0%</div>
-          <div id="uploadError"></div>
-        </div>
-      </main>
+<div class="app-wrap">
+  <div id="loginPage">
+    <div class="login-box">
+      <h1>Enter View ID</h1>
+      <input id="viewId" class="input" type="password" placeholder="••••">
+      <button id="loginBtn" class="btn">Log In</button>
+      <div id="loginError" class="error"></div>
     </div>
   </div>
-</body>
-</html>
+
+  <div id="appPage" style="display:none;">
+    <nav class="side">
+      <h2>My Storage</h2>
+      <div class="desc">View all uploaded files</div>
+      <div class="upload-row">
+        <input type="file" id="fileInput">
+        <button id="uploadBtn" class="btn small">Upload</button>
+      </div>
+      <div id="selectedName"></div>
+      <button id="logoutBtn" class="btn secondary small">Logout</button>
+    </nav>
+    <main id="fileList"></main>
+  </div>
+
+  <div id="progressContainer">
+    <progress id="uploadProgress" value="0" max="100"></progress>
+    <div id="progressText">0%</div>
+    <div id="uploadError" class="error"></div>
+  </div>
+</div>
