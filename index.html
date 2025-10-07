@@ -12,6 +12,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const BUCKET = 'my-storage';
+const UPLOAD_FOLDER = 'uploads/';
 const CORRECT_VIEW_ID = "12321";
 
 function showError(message){
@@ -28,38 +29,43 @@ async function uploadFile(file){
   progressText.textContent = "0%";
   showError("");
 
-  const { data, error } = await supabase
-    .storage
-    .from(BUCKET)
-    .upload(file.name, file, {
-      cacheControl: '3600',
-      upsert: true
-    });
+  try{
+    const { data, error } = await supabase.storage.from(BUCKET).upload(
+      `${UPLOAD_FOLDER}${file.name}`,
+      file,
+      {
+        upsert: true,
+        onUploadProgress: progressEvent => {
+          if(progressEvent.lengthComputable){
+            const percent = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+            progressBar.value = percent;
+            progressText.textContent = percent + "%";
+          }
+        }
+      }
+    );
 
-  if(error){
-    showError("Upload failed: " + error.message);
+    if(error) throw error;
+
+    setTimeout(()=>{ progressContainer.style.display="none"; listFiles(); },500);
+  } catch(err){
+    showError("Upload failed: " + err.message);
     progressContainer.style.display = "none";
-    return;
   }
-
-  progressBar.value = 100;
-  progressText.textContent = "100%";
-
-  setTimeout(()=>{ progressContainer.style.display="none"; listFiles(); },500);
 }
 
 async function listFiles(){
   const container = document.getElementById("fileList");
   container.innerHTML = "Loading files...";
   try{
-    const { data: files, error } = await supabase.storage.from(BUCKET).list('', { limit: 100, offset: 0 });
+    const { data: files, error } = await supabase.storage.from(BUCKET).list(UPLOAD_FOLDER, { limit: 100, offset: 0 });
     if(error) throw error;
     container.innerHTML = '';
     if(files.length === 0) container.innerHTML = "No files uploaded yet.";
     files.forEach(file => {
       const card = document.createElement("div");
       card.className = "file-card";
-      const url = supabase.storage.from(BUCKET).getPublicUrl(file.name).data.publicUrl;
+      const url = supabase.storage.from(BUCKET).getPublicUrl(`${UPLOAD_FOLDER}${file.name}`).data.publicUrl;
       card.innerHTML = `<a href="${url}" target="_blank">${file.name}</a>
                         <button onclick="deleteFile('${file.name}')">Delete</button>`;
       container.appendChild(card);
@@ -71,7 +77,7 @@ async function listFiles(){
 
 async function deleteFile(fileName){
   try{
-    const { error } = await supabase.storage.from(BUCKET).remove([fileName]);
+    const { error } = await supabase.storage.from(BUCKET).remove([`${UPLOAD_FOLDER}${fileName}`]);
     if(error) throw error;
     listFiles();
   } catch(err){
@@ -202,3 +208,4 @@ main h1{margin-bottom:20px;color:#ffcc00;}
 </div>
 </body>
 </html>
+
