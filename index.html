@@ -2,13 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Supabase Upload Test</title>
+  <title>Supabase File Upload</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #1e1e1e;
-      color: white;
+      background: #f0f0f0;
+      font-family: sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -16,44 +14,94 @@
       height: 100vh;
       margin: 0;
     }
-    h1 { margin-bottom: 1rem; }
-    .status {
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
-      background: #333;
-      border-radius: 6px;
-      display: none;
+    .uploader {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 300px;
     }
-    .status.error { background: #8b0000; }
-    .status.success { background: #006400; }
+    input[type="file"] {
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+    button {
+      background: #4F46E5;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
-  <h1>Supabase Upload Test Page</h1>
-  <p>Open your browser console (<strong>F12</strong>) to run the test code.</p>
-  <div id="status" class="status"></div>
+
+  <div class="uploader">
+    <h2>📤 Upload a File</h2>
+    <input type="file" id="fileInput" />
+    <button id="uploadBtn" disabled>Upload</button>
+    <div class="status" id="status"></div>
+  </div>
 
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // 🔑 Replace these with your actual Supabase project values:
-    const SUPABASE_URL = 'https://dnuvhvcnwmbjttmitcwr.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI';
-    const BUCKET = 'my-storage';
+    // ✅ Your Supabase credentials
+    const supabaseUrl = 'https://dnuvhvcnwmbjttmitcwr.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI';
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // ✅ Initialize Supabase
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const statusDiv = document.getElementById('status');
 
-    // ✅ Expose to the browser console for testing
-    window.supabase = supabase;
+    // Enable button when file is selected
+    fileInput.addEventListener('change', () => {
+      uploadBtn.disabled = !fileInput.files.length;
+    });
 
-    // Optional: quick feedback helper
-    const statusEl = document.getElementById('status');
-    function showStatus(msg, type = '') {
-      statusEl.textContent = msg;
-      statusEl.className = 'status ' + type;
-      statusEl.style.display = 'block';
-    }
+    // Upload handler
+    uploadBtn.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      statusDiv.textContent = 'Uploading... ⏳';
+      uploadBtn.disabled = true;
+
+      // Choose your folder inside your bucket (e.g., 'uploads/')
+      const filePath = `uploads/${file.name}`;
+
+      const { data, error } = await supabase.storage
+        .from('my-storage')       // 🔥 Change to your actual bucket name
+        .upload(filePath, file, { upsert: true });
+
+      if (error) {
+        console.error(error);
+        statusDiv.textContent = `❌ Upload failed: ${error.message}`;
+      } else {
+        // You can make it public or generate a signed URL too:
+        const { data: publicData } = supabase.storage
+          .from('my-storage')
+          .getPublicUrl(filePath);
+
+        statusDiv.innerHTML = `✅ Upload successful!<br>
+          <a href="${publicData.publicUrl}" target="_blank">View file</a>`;
+      }
+
+      uploadBtn.disabled = false;
+    });
   </script>
+
 </body>
 </html>
