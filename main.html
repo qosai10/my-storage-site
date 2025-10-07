@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <title>File Storage</title>
   <script type="module">
-    // Firebase SDKs
+    // Import Firebase SDKs
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
     import { getStorage, ref, uploadBytes, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
 
-    // Firebase config
+    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyAlt-D7PqYxPUs8t2nmnzkO13eriWp_UN0",
       authDomain: "mystorage-5e7af.firebaseapp.com",
@@ -27,29 +27,40 @@
       window.location.href = "index.html";
     }
 
+    // Upload file function with error logging
     async function uploadFile() {
       const file = document.getElementById("fileInput").files[0];
       if(!file) return alert("Select a file first!");
       const storageRef = ref(storage, file.name);
-      await uploadBytes(storageRef, file);
-      alert("File uploaded!");
-      listFiles();
+      try {
+        await uploadBytes(storageRef, file);
+        alert("File uploaded!");
+        listFiles();
+      } catch(err) {
+        console.error("Upload failed:", err);
+        alert("Upload failed! Check console for errors.");
+      }
     }
 
+    // List all files in the storage bucket
     async function listFiles() {
       const listRef = ref(storage, "");
-      const res = await listAll(listRef);
-      const container = document.getElementById("fileList");
-      container.innerHTML = "";
-      for(const itemRef of res.items) {
-        const url = await getDownloadURL(itemRef);
-        const link = document.createElement("a");
-        link.href = url;
-        link.target = "_blank";
-        link.textContent = itemRef.name;
-        const div = document.createElement("div");
-        div.appendChild(link);
-        container.appendChild(div);
+      try {
+        const res = await listAll(listRef);
+        const container = document.getElementById("fileList");
+        container.innerHTML = "";
+        for(const itemRef of res.items) {
+          const url = await getDownloadURL(itemRef);
+          const link = document.createElement("a");
+          link.href = url;
+          link.target = "_blank";
+          link.textContent = itemRef.name;
+          const div = document.createElement("div");
+          div.appendChild(link);
+          container.appendChild(div);
+        }
+      } catch(err) {
+        console.error("Failed to list files:", err);
       }
     }
 
