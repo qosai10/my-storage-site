@@ -12,7 +12,7 @@
       apiKey: "AIzaSyAlt-D7PqYxPUs8t2nmnzkO13eriWp_UN0",
       authDomain: "mystorage-5e7af.firebaseapp.com",
       projectId: "mystorage-5e7af",
-      storageBucket: "mystorage-5e7af.appspot.com", // ✅ FIXED
+      storageBucket: "mystorage-5e7af.appspot.com", // ✅ correct bucket
       messagingSenderId: "206631078999",
       appId: "1:206631078999:web:57702614224b3c9e996712"
     };
@@ -26,11 +26,18 @@
       window.location.href = "index.html";
     }
 
+    // Show error messages
+    function showError(message) {
+      const errorDiv = document.getElementById("uploadError");
+      if(!errorDiv) return;
+      errorDiv.textContent = message;
+    }
+
     // Upload function
     async function uploadFile() {
       const fileInput = document.getElementById("fileInput");
       const file = fileInput.files[0];
-      if(!file) return alert("Select a file first!");
+      if(!file) return showError("Select a file first!");
 
       const storageRef = ref(storage, file.name);
       const uploadTask = uploadBytesResumable(storageRef, file);
@@ -38,15 +45,18 @@
       const progressBar = document.getElementById("uploadProgress");
       progressBar.style.display = "block";
 
+      // Clear previous error
+      showError("");
+
       uploadTask.on('state_changed', 
         (snapshot) => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           progressBar.value = progress;
         }, 
         (error) => {
-          console.error("Upload failed:", error);
-          alert("Upload failed! Check console.");
           progressBar.style.display = "none";
+          showError("Upload failed: " + error.message);
+          fileInput.value = "";
         }, 
         () => {
           progressBar.style.display = "none";
@@ -71,6 +81,7 @@
           card.innerHTML = `<a href="${url}" target="_blank">${itemRef.name}</a>`;
           container.appendChild(card);
         });
+        if(res.items.length === 0) container.innerHTML = "No files uploaded yet.";
       } catch(err) {
         console.error("Failed to list files:", err);
         container.innerHTML = `Failed to load files: ${err.message}`;
@@ -176,6 +187,12 @@
       height: 12px;
       border-radius: 6px;
     }
+
+    #uploadError {
+      color: #ff4c4c;
+      margin-top: 10px;
+      min-height: 20px;
+    }
   </style>
 </head>
 <body>
@@ -184,6 +201,7 @@
     <button onclick="document.getElementById('fileInput').click()">Upload File</button>
     <input type="file" id="fileInput" onchange="uploadFile()">
     <progress id="uploadProgress" value="0" max="100"></progress>
+    <div id="uploadError"></div>
     <button onclick="logout()">Logout</button>
   </nav>
   <main>
