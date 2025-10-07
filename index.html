@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Storage Login</title>
+  <title>My Storage Login</title>
   <script>
-    const VIEW_ID = "12345"; // <-- Replace with your secret ID
+    const VIEW_ID = "12345"; // <-- Replace with your secret View ID
 
     function login() {
       const inputId = document.getElementById("viewId").value;
@@ -19,28 +19,81 @@
     window.login = login;
   </script>
   <style>
+    /* GENERAL RESET */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      background-color: #ccc;
-      font-family: sans-serif;
+      height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1e1e2f, #2c2c3e);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+    }
+
+    .login-card {
+      background: #33334d;
+      padding: 40px 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      width: 300px;
       text-align: center;
-      padding: 50px;
     }
+
+    .login-card h1 {
+      color: #ffcc00;
+      margin-bottom: 25px;
+    }
+
     input {
-      padding: 10px;
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+      border: none;
       font-size: 16px;
-      width: 200px;
+      outline: none;
+      background: #444;
+      color: #fff;
+      transition: 0.2s;
     }
+
+    input:focus {
+      background: #555;
+      box-shadow: 0 0 5px #ffcc00;
+    }
+
     button {
-      padding: 10px 20px;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      background: #ffcc00;
+      color: #1e1e2f;
       font-size: 16px;
       cursor: pointer;
-      margin-top: 10px;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #e6b800;
+      transform: scale(1.05);
+    }
+
+    p {
+      margin-top: 15px;
+      font-size: 12px;
+      color: #aaa;
     }
   </style>
 </head>
 <body>
-  <h1>Enter View ID</h1>
-  <input type="text" id="viewId" placeholder="View ID">
-  <button onclick="login()">Login</button>
+  <div class="login-card">
+    <h1>My Storage</h1>
+    <input type="text" id="viewId" placeholder="Enter View ID">
+    <button onclick="login()">Login</button>
+    <p>Enter your secret View ID to access files</p>
+  </div>
 </body>
 </html>
