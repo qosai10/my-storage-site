@@ -4,113 +4,100 @@
 <meta charset="UTF-8">
 <title>My Storage</title>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
-import { getStorage, ref, uploadBytesResumable, listAll, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyAlt-D7PqYxPUs8t2nmnzkO13eriWp_UN0",
-  authDomain: "mystorage-5e7af.firebaseapp.com",
-  projectId: "mystorage-5e7af",
-  storageBucket: "mystorage-5e7af.appspot.com",
-  messagingSenderId: "206631078999",
-  appId: "1:206631078999:web:57702614224b3c9e996712"
-};
+// Supabase config
+const SUPABASE_URL = 'https://dnuvhvcnwmbjttmitcwr.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI';
 
-const app = initializeApp(firebaseConfig);
-const storage = getStorage(app);
-const analytics = getAnalytics(app);
-
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const BUCKET = 'my-storage';
 const CORRECT_VIEW_ID = "12321";
 
-function showError(message) {
-  const errorDiv = document.getElementById("uploadError");
-  errorDiv.textContent = message;
+function showError(message){
+  document.getElementById("uploadError").textContent = message;
 }
 
-function uploadFile(file) {
+async function uploadFile(file){
   if(!file) return showError("Select a file first!");
-
-  const storageRef = ref(storage, file.name);
-  const uploadTask = uploadBytesResumable(storageRef, file);
-
   const progressContainer = document.getElementById("progressContainer");
   const progressBar = document.getElementById("uploadProgress");
   const progressText = document.getElementById("progressText");
   progressContainer.style.display = "flex";
-  showError("");
   progressBar.value = 0;
   progressText.textContent = "0%";
+  showError("");
 
-  uploadTask.on('state_changed', 
-    (snapshot) => {
-      const percent = Math.floor((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-      progressBar.value = percent;
-      progressText.textContent = percent + "%";
-    },
-    (error) => {
-      progressContainer.style.display = "none";
-      showError("Upload failed: " + error.message);
-    },
-    () => {
-      progressContainer.style.display = "none";
-      listFiles();
-    }
-  );
+  const { data, error } = await supabase
+    .storage
+    .from(BUCKET)
+    .upload(file.name, file, {
+      cacheControl: '3600',
+      upsert: true
+    });
+
+  if(error){
+    showError("Upload failed: " + error.message);
+    progressContainer.style.display = "none";
+    return;
+  }
+
+  progressBar.value = 100;
+  progressText.textContent = "100%";
+
+  setTimeout(()=>{ progressContainer.style.display="none"; listFiles(); },500);
 }
 
-async function listFiles() {
+async function listFiles(){
   const container = document.getElementById("fileList");
   container.innerHTML = "Loading files...";
-  try {
-    const listRef = ref(storage, "");
-    const res = await listAll(listRef);
-    container.innerHTML = "";
-    if(res.items.length === 0) container.innerHTML = "No files uploaded yet.";
-    res.items.forEach(async (itemRef) => {
-      const url = await getDownloadURL(itemRef);
+  try{
+    const { data: files, error } = await supabase.storage.from(BUCKET).list('', { limit: 100, offset: 0 });
+    if(error) throw error;
+    container.innerHTML = '';
+    if(files.length === 0) container.innerHTML = "No files uploaded yet.";
+    files.forEach(file => {
       const card = document.createElement("div");
       card.className = "file-card";
-      card.innerHTML = `<a href="${url}" target="_blank">${itemRef.name}</a>
-                        <button onclick="deleteFile('${itemRef.name}')">Delete</button>`;
+      const url = supabase.storage.from(BUCKET).getPublicUrl(file.name).data.publicUrl;
+      card.innerHTML = `<a href="${url}" target="_blank">${file.name}</a>
+                        <button onclick="deleteFile('${file.name}')">Delete</button>`;
       container.appendChild(card);
     });
-  } catch(err) {
-    container.innerHTML = `Failed to load files: ${err.message}`;
+  } catch(err){
+    container.innerHTML = "Failed to load files: " + err.message;
   }
 }
 
-async function deleteFile(fileName) {
-  try {
-    const fileRef = ref(storage, fileName);
-    await deleteObject(fileRef);
+async function deleteFile(fileName){
+  try{
+    const { error } = await supabase.storage.from(BUCKET).remove([fileName]);
+    if(error) throw error;
     listFiles();
-  } catch(err) {
+  } catch(err){
     showError("Failed to delete: " + err.message);
   }
 }
 
-function login() {
+function login(){
   const input = document.getElementById("viewId").value.trim();
-  const errorDiv = document.getElementById("errorMsg");
-  if(input === CORRECT_VIEW_ID) {
+  if(input === CORRECT_VIEW_ID){
     sessionStorage.setItem("loggedIn","true");
     document.getElementById("loginPage").style.display="none";
     document.getElementById("storagePage").style.display="flex";
     listFiles();
     startAutoRefresh();
   } else {
-    errorDiv.textContent="Incorrect View ID!";
+    document.getElementById("errorMsg").textContent="Incorrect View ID!";
   }
 }
 
-function logout() {
+function logout(){
   sessionStorage.removeItem("loggedIn");
   location.reload();
 }
 
-function setupDragDrop() {
+function setupDragDrop(){
   const dropArea = document.getElementById("fileList");
   dropArea.addEventListener("dragover", e => { e.preventDefault(); dropArea.classList.add("dragover"); });
   dropArea.addEventListener("dragleave", e => { e.preventDefault(); dropArea.classList.remove("dragover"); });
@@ -122,12 +109,10 @@ function setupDragDrop() {
   });
 }
 
-function startAutoRefresh() {
-  setInterval(listFiles,5000);
-}
+function startAutoRefresh(){ setInterval(listFiles,5000); }
 
-window.onload = () => {
-  if(sessionStorage.getItem("loggedIn")==="true") {
+window.onload = ()=>{
+  if(sessionStorage.getItem("loggedIn")==="true"){
     document.getElementById("loginPage").style.display="none";
     document.getElementById("storagePage").style.display="flex";
     listFiles();
@@ -137,61 +122,56 @@ window.onload = () => {
     document.getElementById("storagePage").style.display="none";
   }
   setupDragDrop();
-};
+}
 
-window.uploadFile = () => uploadFile(document.getElementById("fileInput").files[0]);
+window.uploadFile = ()=>uploadFile(document.getElementById("fileInput").files[0]);
 window.deleteFile = deleteFile;
 window.logout = logout;
 window.login = login;
 </script>
 
 <style>
-* { box-sizing: border-box; margin:0; padding:0; }
-body { font-family: 'Segoe UI', sans-serif; height:100vh; color:#fff; overflow:hidden; }
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',sans-serif;height:100vh;color:#fff;overflow:hidden;}
 
 /* Login Page */
-#loginPage { display:flex; justify-content:center; align-items:center; height:100%; background:linear-gradient(160deg,#1e1e2f,#2c2c3e); flex-direction:column; }
-.login-container { background:#2c2c3e; padding:40px 30px; border-radius:15px; box-shadow:0 0 20px rgba(0,0,0,0.5); width:320px; text-align:center; }
-.login-container h1 { margin-bottom:25px; color:#ffcc00; }
-.login-container input { width:100%; padding:12px; margin-bottom:15px; border-radius:8px; border:none; outline:none; font-size:14px; }
-.login-container button { width:100%; padding:12px; background-color:#ffcc00; border:none; border-radius:8px; color:#1e1e2f; font-weight:bold; cursor:pointer; font-size:14px; transition:.2s; }
-.login-container button:hover { transform:scale(1.05); background-color:#e6b800; }
-.error-message { color:#ff4c4c; margin-top:12px; font-weight:bold; }
+#loginPage{display:flex;justify-content:center;align-items:center;height:100%;background:linear-gradient(160deg,#1e1e2f,#2c2c3e);flex-direction:column;}
+.login-container{background:#2c2c3e;padding:40px 30px;border-radius:15px;box-shadow:0 0 20px rgba(0,0,0,0.5);width:320px;text-align:center;}
+.login-container h1{margin-bottom:25px;color:#ffcc00;}
+.login-container input{width:100%;padding:12px;margin-bottom:15px;border-radius:8px;border:none;outline:none;font-size:14px;}
+.login-container button{width:100%;padding:12px;background-color:#ffcc00;border:none;border-radius:8px;color:#1e1e2f;font-weight:bold;cursor:pointer;font-size:14px;transition:.2s;}
+.login-container button:hover{transform:scale(1.05);background-color:#e6b800;}
+.error-message{color:#ff4c4c;margin-top:12px;font-weight:bold;}
 
 /* Storage Page */
-#storagePage { display:flex; height:100vh; }
-nav { width:220px; background:#2c2c3e; padding:30px 20px; display:flex; flex-direction:column; border-right:2px solid #444; }
-nav h2 { margin-bottom:30px; text-align:center; color:#ffcc00; }
-nav button { background:#444; border:none; color:#fff; padding:12px; margin-bottom:15px; cursor:pointer; font-size:14px; border-radius:6px; transition:.2s; }
-nav button:hover { background:#ffcc00; color:#1e1e2f; transform:scale(1.05); }
-input[type="file"] { display:none; }
-
-main { flex:1; padding:30px; overflow-y:auto; position:relative; background:linear-gradient(160deg,#1e1e2f,#2c2c3e); }
-main h1 { margin-bottom:20px; color:#ffcc00; }
-#fileList { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:15px; transition:.2s; }
-#fileList.dragover { border:2px dashed #ffcc00; border-radius:12px; padding:10px; }
-
-.file-card { background:#33334d; padding:15px; border-radius:10px; transition:.2s; word-break:break-word; display:flex; flex-direction:column; }
-.file-card a { color:#fff; text-decoration:none; margin-bottom:8px; }
-.file-card:hover { background:#ffcc00; color:#1e1e2f; }
-.file-card:hover a { color:#1e1e2f; }
-.file-card button { padding:6px 10px; background:#ff4c4c; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px; transition:.2s; }
-.file-card button:hover { background:#ff0000; }
+#storagePage{display:flex;height:100vh;}
+nav{width:220px;background:#2c2c3e;padding:30px 20px;display:flex;flex-direction:column;border-right:2px solid #444;}
+nav h2{margin-bottom:30px;text-align:center;color:#ffcc00;}
+nav button{background:#444;border:none;color:#fff;padding:12px;margin-bottom:15px;cursor:pointer;font-size:14px;border-radius:6px;transition:.2s;}
+nav button:hover{background:#ffcc00;color:#1e1e2f;transform:scale(1.05);}
+input[type="file"]{display:none;}
+main{flex:1;padding:30px;overflow-y:auto;position:relative;background:linear-gradient(160deg,#1e1e2f,#2c2c3e);}
+main h1{margin-bottom:20px;color:#ffcc00;}
+#fileList{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px;transition:.2s;}
+#fileList.dragover{border:2px dashed #ffcc00;border-radius:12px;padding:10px;}
+.file-card{background:#33334d;padding:15px;border-radius:10px;transition:.2s;word-break:break-word;display:flex;flex-direction:column;}
+.file-card a{color:#fff;text-decoration:none;margin-bottom:8px;}
+.file-card:hover{background:#ffcc00;color:#1e1e2f;}
+.file-card:hover a{color:#1e1e2f;}
+.file-card button{padding:6px 10px;background:#ff4c4c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;transition:.2s;}
+.file-card button:hover{background:#ff0000;}
 
 /* Progress Bar */
-#progressContainer { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:50%; flex-direction:column; align-items:center; display:none; z-index:10; }
-#uploadProgress { width:100%; height:25px; border-radius:12px; appearance:none; margin-bottom:10px; }
-#uploadProgress::-webkit-progress-bar { background-color:#444; border-radius:12px; }
-#uploadProgress::-webkit-progress-value { background-color:#ffcc00; border-radius:12px; }
-#uploadProgress::-moz-progress-bar { background-color:#ffcc00; border-radius:12px; }
-#progressText { color:#ffcc00; font-weight:bold; text-align:center; }
-
-#uploadError { color:#ff4c4c; margin-top:12px; text-align:center; font-weight:bold; }
-
+#progressContainer{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:50%;flex-direction:column;align-items:center;display:none;z-index:10;}
+#uploadProgress{width:100%;height:25px;border-radius:12px;appearance:none;margin-bottom:10px;}
+#uploadProgress::-webkit-progress-bar{background-color:#444;border-radius:12px;}
+#uploadProgress::-webkit-progress-value{background-color:#ffcc00;border-radius:12px;}
+#uploadProgress::-moz-progress-bar{background-color:#ffcc00;border-radius:12px;}
+#progressText{color:#ffcc00;font-weight:bold;text-align:center;}
+#uploadError{color:#ff4c4c;margin-top:12px;text-align:center;font-weight:bold;}
 </style>
-</head>
-<body>
 
+<body>
 <!-- LOGIN PAGE -->
 <div id="loginPage">
   <div class="login-container">
@@ -213,7 +193,6 @@ main h1 { margin-bottom:20px; color:#ffcc00; }
   <main>
     <h1>Files</h1>
     <div id="fileList"></div>
-
     <div id="progressContainer">
       <progress id="uploadProgress" value="0" max="100"></progress>
       <div id="progressText">0%</div>
@@ -221,6 +200,5 @@ main h1 { margin-bottom:20px; color:#ffcc00; }
     </div>
   </main>
 </div>
-
 </body>
 </html>
