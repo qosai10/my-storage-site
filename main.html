@@ -12,7 +12,7 @@
       apiKey: "AIzaSyAlt-D7PqYxPUs8t2nmnzkO13eriWp_UN0",
       authDomain: "mystorage-5e7af.firebaseapp.com",
       projectId: "mystorage-5e7af",
-      storageBucket: "mystorage-5e7af.appspot.com", // ✅ correct bucket
+      storageBucket: "mystorage-5e7af.appspot.com",
       messagingSenderId: "206631078999",
       appId: "1:206631078999:web:57702614224b3c9e996712"
     };
@@ -42,8 +42,9 @@
       const storageRef = ref(storage, file.name);
       const uploadTask = uploadBytesResumable(storageRef, file);
 
+      const progressContainer = document.getElementById("progressContainer");
       const progressBar = document.getElementById("uploadProgress");
-      progressBar.style.display = "block";
+      progressContainer.style.display = "flex"; // show center progress bar
 
       // Clear previous error
       showError("");
@@ -54,12 +55,12 @@
           progressBar.value = progress;
         }, 
         (error) => {
-          progressBar.style.display = "none";
+          progressContainer.style.display = "none";
           showError("Upload failed: " + error.message);
           fileInput.value = "";
         }, 
         () => {
-          progressBar.style.display = "none";
+          progressContainer.style.display = "none";
           fileInput.value = "";
           listFiles(); // refresh file list
         }
@@ -148,6 +149,7 @@
       flex: 1;
       padding: 30px;
       overflow-y: auto;
+      position: relative;
     }
 
     main h1 { margin-bottom: 20px; color: #ffcc00; }
@@ -180,18 +182,48 @@
       color: #1e1e2f;
     }
 
+    /* Centered progress bar container */
+    #progressContainer {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60%;
+      flex-direction: column;
+      align-items: center;
+      display: none;
+      z-index: 10;
+    }
+
     #uploadProgress {
       width: 100%;
-      display: none;
-      margin-top: 10px;
-      height: 12px;
-      border-radius: 6px;
+      height: 25px;
+      border-radius: 12px;
+      overflow: hidden;
+      appearance: none;
+    }
+
+    /* Chrome & Safari styling */
+    #uploadProgress::-webkit-progress-bar {
+      background-color: #444;
+      border-radius: 12px;
+    }
+    #uploadProgress::-webkit-progress-value {
+      background-color: #ffcc00;
+      border-radius: 12px;
+    }
+
+    /* Firefox styling */
+    #uploadProgress::-moz-progress-bar {
+      background-color: #ffcc00;
+      border-radius: 12px;
     }
 
     #uploadError {
       color: #ff4c4c;
-      margin-top: 10px;
-      min-height: 20px;
+      margin-top: 12px;
+      text-align: center;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -200,13 +232,17 @@
     <h2>My Storage</h2>
     <button onclick="document.getElementById('fileInput').click()">Upload File</button>
     <input type="file" id="fileInput" onchange="uploadFile()">
-    <progress id="uploadProgress" value="0" max="100"></progress>
-    <div id="uploadError"></div>
     <button onclick="logout()">Logout</button>
   </nav>
   <main>
     <h1>Files</h1>
     <div id="fileList"></div>
+
+    <!-- Centered Progress & Error -->
+    <div id="progressContainer">
+      <progress id="uploadProgress" value="0" max="100"></progress>
+      <div id="uploadError"></div>
+    </div>
   </main>
 </body>
 </html>
