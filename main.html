@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>File Storage</title>
+  <script type="module">
+    // Firebase SDKs
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { getStorage, ref, uploadBytes, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAlt-D7PqYxPUs8t2nmnzkO13eriWp_UN0",
+      authDomain: "mystorage-5e7af.firebaseapp.com",
+      projectId: "mystorage-5e7af",
+      storageBucket: "mystorage-5e7af.appspot.com",
+      messagingSenderId: "206631078999",
+      appId: "1:206631078999:web:57702614224b3c9e996712"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const storage = getStorage(app);
+
+    // Redirect if not logged in
+    if(localStorage.getItem("loggedIn") !== "true") {
+      window.location.href = "index.html";
+    }
+
+    async function uploadFile() {
+      const file = document.getElementById("fileInput").files[0];
+      if(!file) return alert("Select a file first!");
+      const storageRef = ref(storage, file.name);
+      await uploadBytes(storageRef, file);
+      alert("File uploaded!");
+      listFiles();
+    }
+
+    async function listFiles() {
+      const listRef = ref(storage, "");
+      const res = await listAll(listRef);
+      const container = document.getElementById("fileList");
+      container.innerHTML = "";
+      for(const itemRef of res.items) {
+        const url = await getDownloadURL(itemRef);
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.textContent = itemRef.name;
+        const div = document.createElement("div");
+        div.appendChild(link);
+        container.appendChild(div);
+      }
+    }
+
+    window.uploadFile = uploadFile;
+    window.onload = listFiles;
+  </script>
+  <style>
+    body { display: flex; background-color: #ccc; font-family: sans-serif; height: 100vh; margin: 0; }
+    nav { width: 200px; background: #999; padding: 20px; display: flex; flex-direction: column; }
+    main { flex: 1; padding: 20px; overflow-y: auto; }
+    button { padding: 10px; margin-top: 10px; cursor: pointer; }
+    #fileList div { margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <h2>Menu</h2>
+    <button onclick="document.getElementById('fileInput').click()">Upload File</button>
+    <input type="file" id="fileInput" style="display:none" onchange="uploadFile()">
+  </nav>
+  <main>
+    <h1>Files</h1>
+    <div id="fileList"></div>
+  </main>
+</body>
+</html>
