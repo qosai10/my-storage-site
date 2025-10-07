@@ -7,6 +7,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
     import { getStorage, ref, uploadBytes, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
 
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyAlt-D7PqYxPUs8t2nmnzkO13eriWp_UN0",
       authDomain: "mystorage-5e7af.firebaseapp.com",
@@ -19,32 +20,34 @@
     const app = initializeApp(firebaseConfig);
     const storage = getStorage(app);
 
-    // Redirect if not logged in (sessionStorage)
+    // Redirect to login if not logged in
     if(sessionStorage.getItem("loggedIn") !== "true") {
       window.location.href = "index.html";
     }
 
-    // Upload file and refresh list immediately
     async function uploadFile() {
-      const file = document.getElementById("fileInput").files[0];
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
       if(!file) return alert("Select a file first!");
       const storageRef = ref(storage, file.name);
+
       try {
         await uploadBytes(storageRef, file);
-        document.getElementById("fileInput").value = ""; // reset input
-        listFiles(); // refresh the file list instantly
+        fileInput.value = ""; // reset input
+        listFiles(); // refresh instantly
       } catch(err) {
         console.error("Upload failed:", err);
         alert("Upload failed! Check console for errors.");
       }
     }
 
-    // List all files in Firebase Storage
     async function listFiles() {
-      const listRef = ref(storage, "");
+      const container = document.getElementById("fileList");
+      container.innerHTML = "Loading files...";
+
       try {
+        const listRef = ref(storage, "");
         const res = await listAll(listRef);
-        const container = document.getElementById("fileList");
         container.innerHTML = "";
         for(const itemRef of res.items) {
           const url = await getDownloadURL(itemRef);
@@ -58,14 +61,21 @@
         }
       } catch(err) {
         console.error("Failed to list files:", err);
+        container.innerHTML = "Failed to load files.";
       }
     }
 
+    function logout() {
+      sessionStorage.removeItem("loggedIn");
+      window.location.href = "index.html";
+    }
+
     window.uploadFile = uploadFile;
+    window.logout = logout;
     window.onload = listFiles;
   </script>
   <style>
-    body { display: flex; background-color: #ccc; font-family: sans-serif; height: 100vh; margin: 0; }
+    body { display: flex; height: 100vh; margin: 0; font-family: sans-serif; background-color: #ccc; }
     nav { width: 200px; background: #999; padding: 20px; display: flex; flex-direction: column; }
     main { flex: 1; padding: 20px; overflow-y: auto; }
     button { padding: 10px; margin-top: 10px; cursor: pointer; }
@@ -77,6 +87,7 @@
     <h2>Menu</h2>
     <button onclick="document.getElementById('fileInput').click()">Upload File</button>
     <input type="file" id="fileInput" style="display:none" onchange="uploadFile()">
+    <button onclick="logout()">Logout</button>
   </nav>
   <main>
     <h1>Files</h1>
