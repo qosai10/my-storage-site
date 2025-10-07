@@ -24,20 +24,22 @@
       window.location.href = "index.html";
     }
 
+    // Upload file and refresh list immediately
     async function uploadFile() {
       const file = document.getElementById("fileInput").files[0];
       if(!file) return alert("Select a file first!");
       const storageRef = ref(storage, file.name);
       try {
         await uploadBytes(storageRef, file);
-        alert("File uploaded!");
-        listFiles();
+        document.getElementById("fileInput").value = ""; // reset input
+        listFiles(); // refresh the file list instantly
       } catch(err) {
         console.error("Upload failed:", err);
         alert("Upload failed! Check console for errors.");
       }
     }
 
+    // List all files in Firebase Storage
     async function listFiles() {
       const listRef = ref(storage, "");
       try {
