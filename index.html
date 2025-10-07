@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>Storage Login</title>
-  <script type="module">
+  <script>
     const VIEW_ID = "12345"; // <-- Replace with your secret View ID
 
     function login() {
       const inputId = document.getElementById("viewId").value;
       if(inputId === VIEW_ID) {
-        localStorage.setItem("loggedIn", "true");
+        sessionStorage.setItem("loggedIn", "true"); // sessionStorage instead of localStorage
         window.location.href = "main.html";
       } else {
         alert("Invalid View ID");
