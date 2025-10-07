@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Storage Login</title>
+  <script type="module">
+    const VIEW_ID = "12345"; // <-- Replace with your secret View ID
+
+    function login() {
+      const inputId = document.getElementById("viewId").value;
+      if(inputId === VIEW_ID) {
+        localStorage.setItem("loggedIn", "true");
+        window.location.href = "main.html";
+      } else {
+        alert("Invalid View ID");
+      }
+    }
+
+    window.login = login;
+  </script>
+  <style>
+    body { background-color: #ccc; font-family: sans-serif; text-align: center; padding: 50px; }
+    input { padding: 10px; font-size: 16px; width: 200px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Enter View ID</h1>
+  <input type="text" id="viewId" placeholder="View ID">
+  <button onclick="login()">Login</button>
+</body>
+</html>
