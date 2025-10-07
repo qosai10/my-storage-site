@@ -5,9 +5,8 @@
   <title>My Storage</title>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-    import { getStorage, ref, uploadBytes, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
+    import { getStorage, ref, uploadBytesResumable, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
 
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyAlt-D7PqYxPUs8t2nmnzkO13eriWp_UN0",
       authDomain: "mystorage-5e7af.firebaseapp.com",
@@ -20,7 +19,6 @@
     const app = initializeApp(firebaseConfig);
     const storage = getStorage(app);
 
-    // Session login check
     if(sessionStorage.getItem("loggedIn") !== "true") {
       window.location.href = "index.html";
     }
@@ -29,16 +27,29 @@
       const fileInput = document.getElementById("fileInput");
       const file = fileInput.files[0];
       if(!file) return alert("Select a file first!");
-      const storageRef = ref(storage, file.name);
 
-      try {
-        await uploadBytes(storageRef, file);
-        fileInput.value = "";
-        listFiles();
-      } catch(err) {
-        console.error("Upload failed:", err);
-        alert("Upload failed! Check console for errors.");
-      }
+      const storageRef = ref(storage, file.name);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      const progressBar = document.getElementById("uploadProgress");
+      progressBar.style.display = "block";
+
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          progressBar.value = progress;
+        }, 
+        (error) => {
+          console.error("Upload failed:", error);
+          alert("Upload failed! Check console.");
+          progressBar.style.display = "none";
+        }, 
+        () => {
+          progressBar.style.display = "none";
+          fileInput.value = "";
+          listFiles(); // refresh file list
+        }
+      );
     }
 
     async function listFiles() {
@@ -57,7 +68,7 @@
         });
       } catch(err) {
         console.error("Failed to list files:", err);
-        container.innerHTML = "Failed to load files.";
+        container.innerHTML = `Failed to load files: ${err.message}`;
       }
     }
 
@@ -71,19 +82,17 @@
     window.onload = listFiles;
   </script>
   <style>
-    /* GENERAL RESET */
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Segoe UI', sans-serif;
       display: flex;
       height: 100vh;
-      background: #1e1e2f;
+      background: linear-gradient(160deg, #1e1e2f, #2c2c3e);
       color: #fff;
       overflow: hidden;
     }
 
-    /* SIDE MENU */
     nav {
       width: 220px;
       background: #2c2c3e;
@@ -117,22 +126,15 @@
       transform: scale(1.05);
     }
 
-    input[type="file"] {
-      display: none;
-    }
+    input[type="file"] { display: none; }
 
-    /* MAIN CONTENT */
     main {
       flex: 1;
       padding: 30px;
       overflow-y: auto;
-      background: linear-gradient(160deg, #1e1e2f, #2c2c3e);
     }
 
-    main h1 {
-      margin-bottom: 20px;
-      color: #ffcc00;
-    }
+    main h1 { margin-bottom: 20px; color: #ffcc00; }
 
     #fileList {
       display: grid;
@@ -162,13 +164,12 @@
       color: #1e1e2f;
     }
 
-    /* SCROLLBAR */
-    main::-webkit-scrollbar {
-      width: 8px;
-    }
-    main::-webkit-scrollbar-thumb {
-      background: #555;
-      border-radius: 4px;
+    #uploadProgress {
+      width: 100%;
+      display: none;
+      margin-top: 10px;
+      height: 12px;
+      border-radius: 6px;
     }
   </style>
 </head>
@@ -177,6 +178,7 @@
     <h2>My Storage</h2>
     <button onclick="document.getElementById('fileInput').click()">Upload File</button>
     <input type="file" id="fileInput" onchange="uploadFile()">
+    <progress id="uploadProgress" value="0" max="100"></progress>
     <button onclick="logout()">Logout</button>
   </nav>
   <main>
@@ -185,4 +187,3 @@
   </main>
 </body>
 </html>
-
