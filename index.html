@@ -59,7 +59,9 @@ async function listFiles(){
             const filePath = `${UPLOAD_FOLDER}${f.name}`;
             const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
             const isImg = /\.(jpe?g|png|gif|webp)$/i.test(f.name);
-            const card = document.createElement('div'); card.className='file-card';
+            const card = document.createElement('div'); 
+            card.className='file-card';
+            card.dataset.url = isImg? publicData.publicUrl : '';
             card.innerHTML=`
                 <div class="file-preview">
                     ${isImg?`<img src="${publicData.publicUrl}" class="preview" />`:'<div class="file-placeholder">File</div>'}
@@ -68,7 +70,6 @@ async function listFiles(){
                     <div class="file-name" title="${f.name}">${f.name}</div>
                     <div class="file-actions">
                         <a class="btn small" target="_blank" href="${publicData.publicUrl}">Download</a>
-                        ${isImg?`<button class="btn small view" data-url="${publicData.publicUrl}">View</button>`:``}
                         <button class="btn small danger" data-f="${f.name}">Delete</button>
                         <button class="btn small rename" data-f="${f.name}">Rename</button>
                     </div>
@@ -125,17 +126,36 @@ function renderApp(){
     else { if(window._refreshInterval){ clearInterval(window._refreshInterval); window._refreshInterval=null; } }
 }
 
-// View image in modal
-function setupViewModal(){
-    document.body.addEventListener('click', e=>{
-        if(e.target.classList.contains('view')){
-            const url = e.target.dataset.url;
-            const modal = $('#imageModal');
-            $('#modalImg').src = url;
+// Image modal
+function setupImageModal(){
+    const modal = $('#imageModal');
+    const modalImg = $('#modalImg');
+
+    // Click on file card to view
+    $('#fileList').addEventListener('click', e=>{
+        const card = e.target.closest('.file-card');
+        if(card && !e.target.closest('button') && card.dataset.url){
+            modalImg.src = card.dataset.url;
             modal.style.display = 'flex';
+            setTimeout(()=> modal.style.opacity=1, 20);
         }
     });
-    $('#closeModal').addEventListener('click', ()=>{ $('#imageModal').style.display='none'; });
+
+    // Close modal
+    modal.addEventListener('click', e=>{
+        if(e.target===modal || e.target.id==='closeModal'){
+            modal.style.opacity=0;
+            setTimeout(()=>{ modal.style.display='none'; modalImg.src=''; }, 200);
+        }
+    });
+
+    // Escape key closes modal
+    document.addEventListener('keydown', e=>{
+        if(e.key==='Escape' && modal.style.display==='flex'){
+            modal.style.opacity=0;
+            setTimeout(()=>{ modal.style.display='none'; modalImg.src=''; }, 200);
+        }
+    });
 }
 
 window.addEventListener('load',()=>{
@@ -150,7 +170,7 @@ window.addEventListener('load',()=>{
         const ren = e.target.closest('button.rename'); if(ren) renameFile(ren.dataset.f);
     });
     setupDragDrop();
-    setupViewModal();
+    setupImageModal();
     renderApp();
 });
 </script>
@@ -191,8 +211,8 @@ header label.file-btn{padding:10px 14px;background:var(--accent);color:#111;bord
 header label.file-btn:hover{opacity:.85;}
 
 /* Files grid horizontal rectangle */
-#fileList{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;}
-.file-card{background:var(--card);border-radius:var(--radius);display:flex;flex-direction:row;align-items:center;gap:12px;padding:10px;transition:.2s;}
+#fileList{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px;}
+.file-card{background:var(--card);border-radius:var(--radius);display:flex;flex-direction:row;align-items:center;gap:12px;padding:10px;transition:.2s;cursor:pointer;}
 .file-card:hover{transform:translateY(-3px);box-shadow:0 4px 20px rgba(255,76,76,0.3);}
 .file-preview img.preview{width:120px;height:120px;object-fit:cover;border-radius:var(--radius);}
 .file-placeholder{width:120px;height:120px;display:flex;align-items:center;justify-content:center;background:#333;border-radius:var(--radius);}
@@ -206,7 +226,7 @@ header label.file-btn:hover{opacity:.85;}
 #progressText{color:var(--accent);font-weight:600;}
 
 /* Modal */
-#imageModal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;z-index:2000;}
+#imageModal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;z-index:2000;opacity:0;transition:.2s;}
 #imageModal img{max-width:90%;max-height:90%;border-radius:var(--radius);}
 #closeModal{position:absolute;top:20px;right:20px;padding:10px 14px;background:var(--accent);border:none;border-radius:var(--radius);cursor:pointer;color:#111;font-weight:600;}
 </style>
