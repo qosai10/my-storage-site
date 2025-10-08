@@ -19,6 +19,9 @@ const VIEW_ID = '12321';
 const $ = sel => document.querySelector(sel);
 const showError = msg => { $('#uploadError').textContent = msg || ''; };
 
+let currentPage = 1;
+const itemsPerPage = 25; // 5x5
+
 async function doUpload(file){
     if(!file) return showError('No file selected');
     showError('');
@@ -50,8 +53,12 @@ async function listFiles(){
         const { data: files, error } = await supabase.storage.from(BUCKET).list(UPLOAD_FOLDER, { limit:200 });
         if(error) throw error;
         if(!files || files.length===0){ container.innerHTML='<div class="empty">No files uploaded yet.</div>'; return; }
+
         files.sort((a,b)=>a.name.localeCompare(b.name,{numeric:true,sensitivity:'base'}));
-        for(const f of files){
+        const startIdx = (currentPage-1) * itemsPerPage;
+        const pageFiles = files.slice(startIdx, startIdx + itemsPerPage);
+
+        for(const f of pageFiles){
             const filePath = `${UPLOAD_FOLDER}${f.name}`;
             const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
             const isImg = /\.(jpe?g|png|gif|webp)$/i.test(f.name);
@@ -73,6 +80,22 @@ async function listFiles(){
             `;
             container.appendChild(card);
         }
+
+        // Pagination buttons
+        const pagination = $('#pagination');
+        pagination.innerHTML = '';
+        const totalPages = Math.ceil(files.length/itemsPerPage);
+        if(totalPages>1){
+            for(let i=1;i<=totalPages;i++){
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = 'btn small';
+                if(i===currentPage) btn.style.opacity = '0.6';
+                btn.addEventListener('click',()=>{currentPage=i; listFiles();});
+                pagination.appendChild(btn);
+            }
+        }
+
     } catch(err){ container.innerHTML='Failed to load files: '+(err.message||err); console.error(err);}
 }
 
@@ -126,6 +149,7 @@ function renderApp(){
     $('#loginPage').style.display = logged?'none':'flex';
     $('#appPage').style.display = logged?'flex':'none';
     if(logged){ 
+        currentPage = 1; 
         listFiles(); 
         if(window._refreshInterval) clearInterval(window._refreshInterval); 
         window._refreshInterval=setInterval(listFiles,5*60*1000);
@@ -200,8 +224,8 @@ header label.file-btn{padding:10px 14px;background:var(--accent);color:#111;bord
 header label.file-btn:hover{opacity:.85;}
 
 /* Files grid */
-#fileList{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(100%,1fr));gap:20px;}
-.file-card{background:var(--card);border-radius:var(--radius);display:flex;flex-direction:row;align-items:center;gap:12px;padding:10px;transition:.2s;cursor:pointer; height:120px;}
+#fileList{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:120px;gap:16px;}
+.file-card{background:var(--card);border-radius:var(--radius);display:flex;flex-direction:row;align-items:center;gap:12px;padding:10px;transition:.2s;cursor:pointer;}
 .file-card:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(255,76,76,0.2);}
 .file-preview{width:120px;flex-shrink:0;}
 .file-preview img{width:100%;height:100%;object-fit:cover;border-radius:var(--radius);}
@@ -219,6 +243,7 @@ header label.file-btn:hover{opacity:.85;}
 #imageModal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;opacity:0;transition:.2s;z-index:2000;}
 #imageModal img{max-width:90%;max-height:90%;border-radius:var(--radius);}
 #closeModal{position:absolute;top:20px;right:20px;padding:10px 14px;background:var(--accent);border:none;border-radius:var(--radius);cursor:pointer;color:#111;font-weight:600;}
+#pagination{display:flex;justify-content:center;gap:8px;margin:10px;}
 </style>
 
 <div class="app-wrap">
@@ -243,6 +268,7 @@ header label.file-btn:hover{opacity:.85;}
       </div>
     </header>
     <div id="fileList"></div>
+    <div id="pagination"></div>
   </div>
 
   <div id="progressContainer">
