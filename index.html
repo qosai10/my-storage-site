@@ -62,11 +62,13 @@ async function listFiles(){
                 <div class="file-preview">
                     ${isImg?`<img src="${publicData.publicUrl}" class="preview"/>`:`<div class="file-placeholder">File</div>`}
                 </div>
-                <div class="file-name" title="${f.name}">${f.name}</div>
-                <div class="file-actions">
-                    <button class="btn small danger" data-f="${f.name}">Delete</button>
-                    <button class="btn small rename" data-f="${f.name}">Rename</button>
-                    <a class="btn small" target="_blank" href="${publicData.publicUrl}">Download</a>
+                <div class="file-info">
+                    <div class="file-name" title="${f.name}">${f.name}</div>
+                    <div class="file-actions">
+                        <button class="btn small danger" data-f="${f.name}">Delete</button>
+                        <button class="btn small rename" data-f="${f.name}">Rename</button>
+                        <a class="btn small" target="_blank" href="${publicData.publicUrl}">Download</a>
+                    </div>
                 </div>
             `;
             container.appendChild(card);
@@ -148,7 +150,6 @@ window.addEventListener('load',()=>{
         if(delBtn) { deleteFile(delBtn.dataset.f); e.stopPropagation(); return; }
         if(renBtn) { renameFile(renBtn.dataset.f); e.stopPropagation(); return; }
 
-        // Click image preview to open modal
         if(img){
             $('#modalImg').src = img.src;
             const modal = $('#imageModal');
@@ -199,27 +200,25 @@ header label.file-btn{padding:10px 14px;background:var(--accent);color:#111;bord
 header label.file-btn:hover{opacity:.85;}
 
 /* Files grid */
-#fileList{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;justify-items:center;}
-.file-card{background:var(--card);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px;width:280px;}
-.file-preview{width:100%;height:280px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:var(--radius);background:#111;}
-.file-preview img.preview{width:100%;height:100%;object-fit:cover;}
-.file-placeholder{color:var(--muted);}
-.file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;text-align:center;font-size:14px;}
-.file-actions{display:flex;gap:8px;justify-content:center;width:100%;}
-
-/* Drag over effect */
+#fileList{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:20px;}
+.file-card{background:var(--card);border-radius:var(--radius);display:flex;flex-direction:row;align-items:center;gap:12px;padding:10px;transition:.2s;cursor:pointer;}
+.file-card:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(255,76,76,0.2);}
+.file-preview{width:180px;flex-shrink:0;}
+.file-preview img{width:100%;height:120px;object-fit:cover;border-radius:var(--radius);}
+.file-placeholder{width:100%;height:120px;background:#444;display:flex;align-items:center;justify-content:center;border-radius:var(--radius);}
+.file-info{flex:1;display:flex;flex-direction:column;gap:6px;}
+.file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;}
+.file-actions{display:flex;gap:8px;}
 .dragover{outline:3px dashed var(--accent);border-radius:var(--radius);}
 .empty{text-align:center;color:var(--muted);width:100%;margin-top:40px;}
-
-/* Progress */
 #progressContainer{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);padding:20px;border-radius:var(--radius);display:none;flex-direction:column;align-items:center;gap:10px;z-index:1000;}
 #uploadProgress{width:220px;height:12px;border-radius:var(--radius);}
 #progressText{color:var(--accent);font-weight:600;}
 
-/* Image modal */
-#imageModal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;opacity:0;transition:.2s;z-index:2000;}
+/* Modal */
+#imageModal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;opacity:0;transition:.2s;z-index:2000;}
 #imageModal img{max-width:90%;max-height:90%;border-radius:var(--radius);}
-#closeModal{position:absolute;top:20px;right:20px;font-size:28px;color:#fff;cursor:pointer;}
+#closeModal{position:absolute;top:20px;right:20px;padding:10px 14px;background:var(--accent);border:none;border-radius:var(--radius);cursor:pointer;color:#111;font-weight:600;}
 </style>
 
 <div class="app-wrap">
@@ -253,8 +252,7 @@ header label.file-btn:hover{opacity:.85;}
   </div>
 </div>
 
-<!-- Image Modal -->
 <div id="imageModal">
-    <span id="closeModal">&#10005;</span>
     <img id="modalImg" src="">
+    <button id="closeModal">Close</button>
 </div>
