@@ -3,77 +3,52 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>My Storage — Redesigned</title>
-
-<!-- Single-file app: Supabase ESM -->
-<script type="module">
-/* empty placeholder: main module loaded later inline */
-</script>
+<title>My Storage — Final</title>
 
 <style>
-  /* -------------------- THEME VARS -------------------- */
   :root{
-    --bg: #000000;
+    --bg: #000;
     --panel: rgba(255,255,255,0.03);
     --panel-strong: rgba(255,255,255,0.04);
-    --accent: #ff4c4c; /* red accent */
-    --muted: #a8a8a8;
-    --white: #ffffff;
-    --glass-blur: 10px;
-    --radius: 14px;
-    --card-height: 170px; /* card height (image + actions area) */
-    --max-width: 1200px;
-  }
-
-  /* Light theme override class (applied to body) */
-  body.theme-light {
-    --bg: #f6f6f6;
-    --panel: rgba(0,0,0,0.04);
-    --panel-strong: rgba(0,0,0,0.06);
-    --accent: #1b1b1b;
-    --muted: #333333;
-    --white: #111111;
-  }
-
-  /* Red theme override */
-  body.theme-red {
-    --bg: #120707;
-    --panel: rgba(255,255,255,0.02);
-    --panel-strong: rgba(255,255,255,0.03);
-    --accent: #ff4c4c;
-    --muted: #d5bdbd;
+    --accent: #ff4c4c; /* default red accent */
+    --muted: #bdbdbd;
     --white: #fff;
+    --glass-blur: 10px;
+    --radius: 12px;
+    --card-height: 170px;
+    --max-width: 1200px;
+    --glow-strength: 0.10; /* controls hover glow */
   }
 
-  /* -------------------- LAYOUT -------------------- */
+  /* THEMES */
+  body.theme-black { --bg: #000; --panel: rgba(255,255,255,0.03); --panel-strong: rgba(255,255,255,0.04); --accent:#ff4c4c; --muted:#bdbdbd; --white:#fff; }
+  body.theme-white { --bg: #f6f6f6; --panel: rgba(0,0,0,0.04); --panel-strong: rgba(0,0,0,0.06); --accent:#111; --muted:#333; --white:#111; }
+  body.theme-red   { --bg:#120707; --accent:#ff4c4c; --muted:#d5bdbd; }
+  body.theme-blue  { --bg:#071221; --accent:#4c8cff; --muted:#b8cfe6; }
+  body.theme-green { --bg:#07120a; --accent:#4cff88; --muted:#cfe6d5; }
+  body.theme-purple{ --bg:#0b0712; --accent:#b84cff; --muted:#d7cfe6; }
+  body.theme-mono  { --bg:#0f0f0f; --accent:#999; --muted:#8f8f8f; }
+
+  /* Layout resets */
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;background:var(--bg);font-family:Inter, "Segoe UI", system-ui, -apple-system, Arial; color:var(--white);overflow:hidden}
+  html,body{height:100%;margin:0;background:var(--bg);font-family:Inter, "Segoe UI", system-ui, -apple-system, Arial;color:var(--white);overflow:hidden}
+  #bgCanvas{position:fixed;inset:0;z-index:0;display:block}
 
-  /* canvas background layer */
-  #bgCanvas{position:fixed;inset:0;z-index:0;display:block;background:var(--bg)}
+  .app-root{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .container{width:100%;max-width:var(--max-width);display:flex;flex-direction:column;gap:12px}
 
-  /* app root */
-  .app-root{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;}
-
-  /* container */
-  .container{width:100%;max-width:var(--max-width);display:flex;flex-direction:column;gap:14px;}
-
-  /* -------------------- LOGIN OVERLAY -------------------- */
-  #loginPage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:6;background:rgba(0,0,0,0.55);}
-  .login-box{
-    width:360px;background:linear-gradient(180deg,var(--panel),var(--panel-strong));
-    padding:34px;border-radius:var(--radius);backdrop-filter:blur(var(--glass-blur));border:1px solid rgba(255,255,255,0.03);text-align:center;
-  }
-  .login-box h2{margin:0 0 8px;color:var(--accent);font-size:20px}
-  .input{width:100%;padding:12px;border-radius:10px;border:none;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--white);margin-bottom:12px;outline:none}
-  .login-actions{display:flex;gap:8px;justify-content:center}
+  /* LOGIN overlay */
+  #loginPage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:6;background:linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5))}
+  .login-box{width:360px;background:linear-gradient(180deg,var(--panel),var(--panel-strong));padding:30px;border-radius:14px;backdrop-filter:blur(var(--glass-blur));border:1px solid rgba(255,255,255,0.03);text-align:center}
+  .login-box h2{margin:0 0 10px;color:var(--accent)}
+  .input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--white);outline:none;margin-bottom:10px}
   .btn{cursor:pointer;border:none;padding:10px 14px;border-radius:10px;font-weight:700}
   .btn.primary{background:linear-gradient(90deg,var(--accent),#ff6b6b);color:#120707}
   .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
-  .login-error{color:#ff9999;margin-top:8px;min-height:18px}
+  .login-error{color:#ff9b9b;margin-top:8px;min-height:18px}
 
-  /* -------------------- HEADER -------------------- */
-  .header{display:flex;justify-content:space-between;align-items:center;padding:12px 8px}
+  /* Header and controls */
+  .header{display:flex;justify-content:space-between;align-items:center;padding:10px 4px}
   .title{font-size:20px;font-weight:800;color:var(--accent)}
   .controls{display:flex;gap:8px;align-items:center}
 
@@ -81,40 +56,32 @@
   .control-btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--white)}
   .control-btn.white{background:var(--white);color:#120707}
 
-  /* file area panel (frosted) */
-  .grid-wrap{background:linear-gradient(180deg,var(--panel),var(--panel-strong));padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(var(--glass-blur));height:calc(100vh - 160px);display:flex;flex-direction:column;gap:12px}
+  /* Grid container */
+  .grid-wrap{background:linear-gradient(180deg,var(--panel),var(--panel-strong));padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(var(--glass-blur));height:calc(100vh - 180px);display:flex;flex-direction:column;gap:12px;overflow:hidden}
 
-  /* file grid: 5 columns x 5 visible rows (25 items) */
-  #fileList{flex:1;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:var(--card-height);gap:12px;padding:8px;overflow:auto}
+  /* File list: vertical scroll only (no horizontal scroll) */
+  #fileList{flex:1;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:var(--card-height);gap:12px;padding:8px;overflow-y:auto;overflow-x:hidden}
+  #fileList::-webkit-scrollbar{width:10px}
+  #fileList::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);border-radius:8px}
 
-  /* -------------------- FILE CARD -------------------- */
-  .file-card{
-    background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.02));
-    border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;transition:transform .12s, box-shadow .12s;position:relative;border:1px solid rgba(255,255,255,0.02)
-  }
+  /* Card */
+  .file-card{background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.02));border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:8px;transition:transform .12s, box-shadow .12s;border:1px solid rgba(255,255,255,0.02);min-width:0}
+  /* glow on hover - toggled by .no-glow on body */
+  body.no-glow .file-card:hover{box-shadow:none;transform:none}
+  body:not(.no-glow) .file-card:hover{transform:translateY(-6px);box-shadow:0 14px 40px rgba(255,255,255,var(--glow-strength))}
 
-  /* white glow on hover */
-  .file-card:hover{transform:translateY(-6px);box-shadow:0 14px 40px rgba(255,255,255,0.10)}
-
-  .file-card .preview{
-    width:100%;height:calc(var(--card-height) - 80px);object-fit:cover;border-radius:8px;background:#060606;cursor:pointer;display:block
-  }
-
+  .preview{width:100%;height:calc(var(--card-height) - 80px);object-fit:cover;border-radius:8px;cursor:pointer;background:#060606;display:block}
   .file-name{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
-
   .file-actions{display:flex;align-items:center;justify-content:space-between;padding:0 6px}
   .file-actions .left{display:flex;gap:8px}
-  .file-actions button, .file-actions a{
-    padding:8px 10px;border-radius:8px;border:none;background:var(--white);color:#111;font-weight:700;cursor:pointer;text-decoration:none;
-  }
+  .file-actions button, .file-actions a { padding:8px 10px;border-radius:8px;border:none;background:var(--white);color:#111;font-weight:700;cursor:pointer;text-decoration:none; }
   .file-actions button.del{background:#9b1f1f;color:#fff}
-  .file-actions button.rename{background:var(--white);color:#111}
   .file-actions a.download{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white);padding:8px 10px}
 
   /* pagination */
   #pagination{display:flex;gap:8px;justify-content:center;padding:10px}
 
-  /* progress popup */
+  /* progress modal */
   #progressContainer{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel-strong);padding:12px;border-radius:10px;display:none;z-index:9;border:1px solid rgba(255,255,255,0.03)}
 
   /* image modal */
@@ -122,19 +89,16 @@
   #imgModal img{max-width:92%;max-height:92%;border-radius:12px}
   #imgModal button{position:absolute;top:18px;right:20px;padding:8px 12px;border-radius:8px;border:none;background:var(--white);color:#120707;font-weight:700;cursor:pointer}
 
-  /* settings side tab (hidden by default) */
-  .settings-panel{
-    position:fixed;right:-360px;top:0;height:100%;width:360px;background:linear-gradient(180deg,var(--panel),var(--panel-strong));backdrop-filter:blur(var(--glass-blur));padding:20px;border-left:1px solid rgba(255,255,255,0.03);z-index:12;transition:right .28s;
-  }
+  /* settings panel slide-in */
+  .settings-panel{position:fixed;right:-380px;top:0;height:100%;width:360px;background:linear-gradient(180deg,var(--panel),var(--panel-strong));backdrop-filter:blur(var(--glass-blur));padding:18px;border-left:1px solid rgba(255,255,255,0.03);z-index:12;transition:right .28s}
   .settings-panel.open{right:0}
-  .settings-panel h3{margin:0 0 12px;color:var(--muted)}
   .theme-option{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.02);margin-bottom:10px}
-  .theme-swatch{width:36px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,0.06)}
+  .theme-swatch{width:36px;height:24px;border-radius:6px;border:1px solid rgba(255,255,255,0.06)}
 
-  /* responsive smaller screens */
+  /* responsive */
   @media (max-width:1200px){ #fileList{grid-template-columns:repeat(4,1fr)} }
   @media (max-width:920px){ #fileList{grid-template-columns:repeat(3,1fr)} .settings-panel{width:320px} }
-  @media (max-width:640px){ #fileList{grid-template-columns:repeat(2,1fr)} .login-box{width:300px} }
+  @media (max-width:640px){ #fileList{grid-template-columns:repeat(2,1fr)} .login-box{width:320px} }
 </style>
 </head>
 <body class="theme-black">
@@ -143,12 +107,12 @@
 
 <div class="app-root">
   <div class="container">
-    <!-- LOGIN OVERLAY -->
+    <!-- LOGIN -->
     <div id="loginPage">
       <div class="login-box">
         <h2>Enter View ID</h2>
         <input id="viewId" class="input" type="password" placeholder="••••" />
-        <div class="login-actions" style="margin-top:8px">
+        <div style="display:flex;gap:8px;margin-top:8px;justify-content:center">
           <button id="loginBtn" class="btn primary">Log In</button>
           <button id="demoBtn" class="btn ghost">Use 12321</button>
         </div>
@@ -157,7 +121,7 @@
     </div>
 
     <!-- APP -->
-    <div id="appPage" style="display:none;">
+    <div id="appPage" style="display:none">
       <div class="header">
         <div class="title">My Storage</div>
         <div class="controls">
@@ -180,7 +144,7 @@
 
 <!-- progress -->
 <div id="progressContainer">
-  <progress id="uploadProgress" max="100" value="0" style="width:320px;"></progress>
+  <progress id="uploadProgress" max="100" value="0" style="width:320px"></progress>
   <div id="progressText" style="color:var(--muted);text-align:center;margin-top:8px">0%</div>
   <div id="uploadError" style="color:#ff8b8b;margin-top:8px"></div>
 </div>
@@ -188,31 +152,44 @@
 <!-- image modal -->
 <div id="imgModal"><button id="closeImg">Close</button><img id="modalImg" src=""></div>
 
-<!-- settings panel -->
+<!-- settings -->
 <div id="settingsPanel" class="settings-panel">
-  <h3>Settings</h3>
-  <div style="margin-bottom:12px">Theme</div>
-  <div id="themeBlack" class="theme-option" data-theme="black">
-    <div class="theme-swatch" style="background:black"></div>
-    <div>Black (Default)</div>
+  <h3 style="margin:0 0 10px;color:var(--muted)">Settings</h3>
+
+  <div style="margin-bottom:8px">Theme</div>
+  <div id="optBlack" class="theme-option" data-theme="black"><div class="theme-swatch" style="background:black"></div><div>Black</div></div>
+  <div id="optWhite" class="theme-option" data-theme="white"><div class="theme-swatch" style="background:#f6f6f6;border:1px solid #ddd"></div><div>White</div></div>
+  <div id="optRed" class="theme-option" data-theme="red"><div class="theme-swatch" style="background:linear-gradient(90deg,#ff4c4c,#ff6b6b)"></div><div>Red</div></div>
+  <div id="optBlue" class="theme-option" data-theme="blue"><div class="theme-swatch" style="background:linear-gradient(90deg,#4c8cff,#6ba8ff)"></div><div>Blue</div></div>
+  <div id="optGreen" class="theme-option" data-theme="green"><div class="theme-swatch" style="background:linear-gradient(90deg,#4cff88,#77ffb3)"></div><div>Green</div></div>
+  <div id="optPurple" class="theme-option" data-theme="purple"><div class="theme-swatch" style="background:linear-gradient(90deg,#b84cff,#cf6bff)"></div><div>Purple</div></div>
+  <div id="optMono" class="theme-option" data-theme="mono"><div class="theme-swatch" style="background:linear-gradient(90deg,#999,#666)"></div><div>Monochrome</div></div>
+
+  <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div>Particles</div>
+    <label style="display:inline-flex;align-items:center;gap:8px">
+      <input id="toggleParticles" type="checkbox" checked>
+    </label>
   </div>
-  <div id="themeWhite" class="theme-option" data-theme="light">
-    <div class="theme-swatch" style="background:#f6f6f6;border:1px solid #ddd"></div>
-    <div>White</div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div>Glow effect</div>
+    <label style="display:inline-flex;align-items:center;gap:8px">
+      <input id="toggleGlow" type="checkbox" checked>
+    </label>
   </div>
-  <div id="themeRed" class="theme-option" data-theme="red">
-    <div class="theme-swatch" style="background:linear-gradient(90deg,#ff4c4c,#ff6b6b)"></div>
-    <div>Red Accent</div>
-  </div>
-  <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0" />
-  <div style="font-size:13px;color:var(--muted)">Particle density</div>
-  <input id="particleRange" type="range" min="20" max="240" value="120" style="width:100%;margin-top:8px" />
-  <div style="height:14px"></div>
-  <button id="closeSettings" class="btn ghost" style="width:100%">Close Settings</button>
+
+  <div style="margin-top:8px">Particle density</div>
+  <input id="particleRange" type="range" min="20" max="300" value="120" style="width:100%;margin-top:8px">
+
+  <div style="height:12px"></div>
+  <button id="closeSettings" class="btn ghost" style="width:100%">Close</button>
 </div>
 
 <script type="module">
-/* ----------------------- APP LOGIC (Supabase + UI) ----------------------- */
+/* ------------------- Supabase + App Logic ------------------- */
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const SUPABASE_URL = 'https://dnuvhvcnwmbjttmitcwr.supabase.co';
@@ -223,8 +200,8 @@ window.supabase = supabase;
 const BUCKET = 'my-storage';
 const FOLDER = 'uploads/';
 const VIEW_ID = '12321';
-
 const $ = s => document.querySelector(s);
+
 let currentPage = 1;
 const itemsPerPage = 25; // 5x5
 
@@ -239,8 +216,7 @@ async function uploadFile(file){
   $('#progressText').textContent = '0%';
   const path = `${FOLDER}${file.name}`;
   try {
-    // fake progress: show activity while uploading
-    $('#uploadProgress').value = 25; $('#progressText').textContent = '25%';
+    $('#uploadProgress').value = 20; $('#progressText').textContent = '20%';
     const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
     if(error) throw error;
     $('#uploadProgress').value = 100; $('#progressText').textContent = '100%';
@@ -346,9 +322,8 @@ async function renameFile(oldName){
   }
 }
 
-/* ------------------ UI wiring & delegation ------------------ */
+/* UI wiring */
 function setupUI(){
-  // login
   $('#loginBtn').addEventListener('click', ()=> {
     const val = $('#viewId').value.trim();
     if(val === VIEW_ID){ sessionStorage.setItem('loggedIn','true'); $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
@@ -356,7 +331,6 @@ function setupUI(){
   });
   $('#demoBtn').addEventListener('click', ()=> { $('#viewId').value = VIEW_ID; $('#loginBtn').click(); });
 
-  // choose / upload
   $('#chooseBtn').addEventListener('click', ()=> $('#fileInput').click());
   $('#uploadBtn').addEventListener('click', ()=> {
     const f = $('#fileInput').files[0];
@@ -365,15 +339,11 @@ function setupUI(){
   });
   $('#fileInput').addEventListener('change', (e)=> { const f = e.target.files[0]; if(f) uploadFile(f); });
 
-  // refresh
   $('#refreshBtn').addEventListener('click', ()=> listFiles());
 
-  // settings panel
-  const settingsPanel = $('#settingsPanel');
-  $('#settingsBtn').addEventListener('click', ()=> settingsPanel.classList.toggle('open'));
-  $('#closeSettings').addEventListener('click', ()=> settingsPanel.classList.remove('open'));
+  $('#settingsBtn').addEventListener('click', ()=> $('#settingsPanel').classList.toggle('open'));
+  $('#closeSettings').addEventListener('click', ()=> $('#settingsPanel').classList.remove('open'));
 
-  // logout
   $('#logoutBtn').addEventListener('click', ()=> {
     sessionStorage.removeItem('loggedIn'); $('#appPage').style.display='none'; $('#loginPage').style.display='flex'; $('#viewId').value='';
   });
@@ -381,22 +351,35 @@ function setupUI(){
   // theme options
   document.querySelectorAll('.theme-option').forEach(el=>{
     el.addEventListener('click', ()=> {
-      const theme = el.dataset.theme;
-      document.body.classList.remove('theme-light','theme-red'); // clear
-      if(theme === 'light') document.body.classList.add('theme-light');
-      else if(theme === 'red') document.body.classList.add('theme-red');
-      else document.body.classList.remove('theme-light','theme-red');
+      const t = el.dataset.theme;
+      document.body.classList.remove('theme-black','theme-white','theme-red','theme-blue','theme-green','theme-purple','theme-mono');
+      if(t === 'white') document.body.classList.add('theme-white');
+      else if(t === 'red') document.body.classList.add('theme-red');
+      else if(t === 'blue') document.body.classList.add('theme-blue');
+      else if(t === 'green') document.body.classList.add('theme-green');
+      else if(t === 'purple') document.body.classList.add('theme-purple');
+      else if(t === 'mono') document.body.classList.add('theme-mono');
+      else document.body.classList.add('theme-black');
     });
   });
 
-  // particle density control
-  $('#particleRange').addEventListener('input', (e) => {
-    const v = parseInt(e.target.value,10);
-    // call bg controller to update density
-    window.Particles && window.Particles.setDensity(v);
+  // toggle particles
+  $('#toggleParticles').addEventListener('change', (e)=>{
+    if(window.Particles) { if(e.target.checked) window.Particles.start(); else window.Particles.stop(); }
   });
 
-  // delegation for fileList: delete/rename/download & open image
+  // toggle glow
+  $('#toggleGlow').addEventListener('change', (e)=>{
+    if(e.target.checked) document.body.classList.remove('no-glow'); else document.body.classList.add('no-glow');
+  });
+
+  // particle density
+  $('#particleRange').addEventListener('input', (e)=> {
+    const v = parseInt(e.target.value,10);
+    if(window.Particles) window.Particles.setDensity(v);
+  });
+
+  // delegation for fileList
   $('#fileList').addEventListener('click', (e) => {
     const del = e.target.closest('button.del');
     if(del){ e.stopPropagation(); deleteFile(del.dataset.name); return; }
@@ -409,29 +392,30 @@ function setupUI(){
     }
   });
 
-  // close image modal
   $('#closeImg').addEventListener('click', ()=> $('#imgModal').style.display = 'none');
 }
 
-/* -------------------- start -------------------- */
-(function init(){
-  setupUI();
-  const logged = sessionStorage.getItem('loggedIn') === 'true';
-  if(logged){ $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
-  else { $('#loginPage').style.display='flex'; $('#appPage').style.display='none'; }
-})();
+/* start */
+setupUI();
+const logged = sessionStorage.getItem('loggedIn') === 'true';
+if(logged){ $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
+else { $('#loginPage').style.display='flex'; $('#appPage').style.display='none'; }
+
 </script>
 
 <script>
-/* ------------------ PARTICLE BACKGROUND (white lines on black) ------------------ */
-/* Exposed controller for density adjustments: window.Particles.setDensity(n) */
-(() => {
+/* ---------------- PARTICLES CONTROLLER (white) ----------------
+   Exposes: window.Particles.start(), .stop(), .setDensity(n)
+*/
+(()=> {
   const canvas = document.getElementById('bgCanvas');
   const ctx = canvas.getContext('2d', { alpha:true });
   let DPR = Math.max(1, window.devicePixelRatio || 1);
   let W = innerWidth, H = innerHeight;
   let pts = [];
-  let density = parseInt(document.getElementById('particleRange').value || 120, 10) || 120;
+  let density = parseInt(document.getElementById('particleRange').value || 120,10) || 120;
+  let running = true;
+  let mouse = { x:-9999, y:-9999, active:false };
 
   function resize(){
     W = innerWidth; H = innerHeight;
@@ -440,38 +424,24 @@ function setupUI(){
     ctx.setTransform(DPR,0,0,DPR,0,0);
     createPoints();
   }
-
-  function rand(min,max){ return Math.random()*(max-min)+min; }
-
+  function rand(a,b){ return Math.random()*(b-a)+a; }
   function createPoints(){
     pts = [];
-    const count = Math.max(30, Math.min(300, Math.round(density * ( (W*H) / (1366*768) )) ));
-    for(let i=0;i<count;i++){
-      pts.push({
-        x: rand(0,W),
-        y: rand(0,H),
-        vx: rand(-0.25,0.25),
-        vy: rand(-0.25,0.25),
-        r: rand(0.8,1.6)
-      });
+    const base = Math.max(40, Math.min(360, Math.round(density * ( (W*H) / (1366*768) )) ));
+    for(let i=0;i<base;i++){
+      pts.push({ x:rand(0,W), y:rand(0,H), vx:rand(-0.25,0.25), vy:rand(-0.25,0.25), r:rand(0.8,1.8) });
     }
   }
 
-  let mouse = { x:-9999, y:-9999, active:false };
-
   function step(){
+    if(!running){ requestAnimationFrame(step); return; }
     ctx.clearRect(0,0,W,H);
-
-    // move points
     for(const p of pts){
       p.x += p.vx; p.y += p.vy;
-      if(p.x < -30) p.x = W + 30;
-      if(p.x > W + 30) p.x = -30;
-      if(p.y < -30) p.y = H + 30;
-      if(p.y > H + 30) p.y = -30;
+      if(p.x < -30) p.x = W + 30; if(p.x > W + 30) p.x = -30;
+      if(p.y < -30) p.y = H + 30; if(p.y > H + 30) p.y = -30;
     }
 
-    // draw connection lines
     for(let i=0;i<pts.length;i++){
       for(let j=i+1;j<pts.length;j++){
         const a = pts[i], b = pts[j];
@@ -479,11 +449,10 @@ function setupUI(){
         const d = Math.sqrt(dx*dx + dy*dy);
         if(d < 140){
           let alpha = 0.26 * (1 - d/140);
-          // strong reaction near mouse
           if(mouse.active){
             const mx = (a.x + b.x)/2 - mouse.x, my = (a.y + b.y)/2 - mouse.y;
             const md = Math.sqrt(mx*mx + my*my);
-            if(md < 220) alpha += (1 - md/220)*0.35;
+            if(md < 220) alpha += (1 - md/220) * 0.35;
           }
           ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
           ctx.lineWidth = 0.9;
@@ -493,7 +462,6 @@ function setupUI(){
       }
     }
 
-    // draw dots
     for(const p of pts){
       let size = p.r;
       if(mouse.active){
@@ -515,19 +483,19 @@ function setupUI(){
   }
 
   window.addEventListener('resize', resize);
-  window.addEventListener('mousemove', (e)=>{ mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true });
-  window.addEventListener('mouseout', ()=>{ mouse.active = false; mouse.x = -9999; mouse.y = -9999 });
+  window.addEventListener('mousemove', (e)=>{ mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; });
+  window.addEventListener('mouseout', ()=>{ mouse.active = false; mouse.x = -9999; mouse.y = -9999; });
 
-  // expose controller
   window.Particles = {
-    setDensity: (v) => { density = v; createPoints(); }
+    start(){ running = true; },
+    stop(){ running = false; ctx.clearRect(0,0,W,H); },
+    setDensity(n){ density = n; createPoints(); },
+    getDensity(){ return density; }
   };
 
-  // init
   resize();
   step();
 })();
 </script>
-
 </body>
 </html>
