@@ -1,271 +1,451 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Storage Dashboard</title>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      background: black;
-      color: white;
-      font-family: "Poppins", sans-serif;
-      overflow: hidden;
-      position: relative;
-    }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>My Storage — Black & White Reactive</title>
 
-    canvas#bg {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-    }
+<!-- Supabase ESM -->
+<script type="module">
+/* We'll load supabase inside the module script below for app logic */
+</script>
 
-    .container {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
+<style>
+  :root{
+    --bg-black: #000000;
+    --card: #0b0b0b;
+    --accent: #c23b3b; /* subtle red accent for some buttons */
+    --white: #ffffff;
+    --muted: #9a9a9a;
+    --radius: 12px;
+  }
+  html,body{height:100%;margin:0;background:var(--bg-black);color:var(--white);font-family:Inter, "Segoe UI", system-ui, sans-serif;overflow:hidden;}
+  /* Background canvas */
+  #bgCanvas{position:fixed;inset:0;z-index:0;display:block;}
+  /* App wrapper above canvas */
+  .app-root{position:relative;z-index:2;height:100%;display:flex;align-items:center;justify-content:center;padding:28px;box-sizing:border-box;}
+  .container{width:100%;max-width:1200px;display:flex;flex-direction:column;gap:14px;}
 
-    .file-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 20px;
-      padding: 20px;
-      overflow-y: auto;
-      width: 90%;
-      max-height: 70vh;
-    }
+  /* LOGIN CENTERED POPUP */
+  #loginPage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;background:rgba(0,0,0,0.45);}
+  .login-box{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:36px;border-radius:14px;border:1px solid rgba(255,255,255,0.03);text-align:center;width:360px;}
+  .login-box h2{margin:0 0 10px;color:var(--white);}
+  .input{width:100%;padding:12px;border-radius:10px;border:none;background:#0f0f0f;color:var(--white);outline:none;margin-bottom:12px;}
+  .btn{background:var(--accent);color:#120707;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;}
+  .btn.secondary{background:rgba(255,255,255,0.06);color:var(--white);}
+  .btn.small{padding:6px 10px;font-size:13px;}
+  .error{color:#ff9b9b;margin-top:8px;font-size:13px;min-height:18px;}
 
-    .file-card {
-      background: rgba(20, 20, 20, 0.8);
-      border-radius: 12px;
-      padding: 10px;
-      text-align: center;
-      transition: all 0.3s ease;
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0);
-      cursor: pointer;
-    }
+  /* Header */
+  .header{display:flex;justify-content:space-between;align-items:center;background:transparent;padding:8px 4px;}
+  .title{font-size:20px;font-weight:800;color:var(--white);}
+  .controls{display:flex;gap:8px;align-items:center;}
+  .choose{background:linear-gradient(90deg,var(--accent),#ff6b6b);color:#140707;border:none;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:700;}
+  .choose.secondary{background:rgba(255,255,255,0.06);color:var(--white);padding:6px 10px;}
+  .choose.white{background:var(--white);color:#120707;}
 
-    .file-card:hover {
-      box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
-      transform: scale(1.03);
-    }
+  /* Grid wrapper rectangle */
+  .grid-wrap{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,0.03);height:calc(100vh - 180px);display:flex;flex-direction:column;gap:12px;}
+  #fileList{flex:1;display:grid;grid-template-columns: repeat(5, 1fr);grid-auto-rows: 1fr;gap:12px;padding:8px;overflow:auto;}
 
-    .file-card img {
-      width: 100%;
-      height: 120px;
-      object-fit: cover;
-      border-radius: 10px;
-    }
+  /* File card: horizontal-leaning rectangle visually but we want consistent ratio;
+     user asked final: square-ish rectangles; here we do cards with image on top and actions under.
+  */
+  .file-card{
+    background:var(--card);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:8px;align-items:stretch;transition: box-shadow .15s, transform .12s;
+    border:1px solid rgba(255,255,255,0.02);
+  }
+  .file-card:hover{ box-shadow: 0 6px 30px rgba(255,255,255,0.12); transform: translateY(-4px); }
+  .preview{width:100%;height:calc(100% - 72px);object-fit:cover;border-radius:10px;cursor:pointer;background:#060606;}
+  .file-name{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;}
+  .file-actions{display:flex;gap:8px;align-items:center;padding:0 4px;justify-content:space-between;}
+  .file-actions .left{display:flex;gap:8px;}
+  .file-actions button, .file-actions a{flex:0 0 auto;padding:8px 8px;border-radius:8px;border:none;background:var(--white);color:#111;font-weight:700;cursor:pointer;text-decoration:none;}
+  .file-actions .del{background:#9b1f1f;color:var(--white);}
+  .file-actions button:hover, .file-actions a:hover{filter:brightness(0.95);}
 
-    .file-card button {
-      margin: 4px;
-      padding: 6px 10px;
-      border: none;
-      border-radius: 8px;
-      background: white;
-      color: black;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.2s;
-      width: 30%;
-    }
+  /* pagination */
+  #pagination{display:flex;gap:8px;justify-content:center;padding:8px;}
+  #pagination .btn.active{opacity:0.7;pointer-events:none;}
 
-    .file-card button:hover {
-      background: #777;
-      color: white;
-    }
+  /* progress modal center */
+  #progressContainer{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--card);padding:14px;border-radius:12px;display:none;z-index:6;border:1px solid rgba(255,255,255,0.03);}
 
-    input[type="file"] {
-      display: none;
-    }
+  /* image modal */
+  #imgModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:7;}
+  #imgModal img{max-width:92%;max-height:92%;border-radius:12px;}
+  #imgModal button{position:absolute;top:20px;right:24px;padding:8px 12px;border-radius:8px;border:none;background:var(--white);color:#120707;font-weight:700;cursor:pointer;}
 
-    .upload-label {
-      background: white;
-      color: black;
-      padding: 10px 20px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: 0.3s;
-    }
+  /* small screens: reduce columns */
+  @media (max-width:1200px){ #fileList{grid-template-columns:repeat(4,1fr);} }
+  @media (max-width:920px){ #fileList{grid-template-columns:repeat(3,1fr);} }
+  @media (max-width:640px){ #fileList{grid-template-columns:repeat(2,1fr);} .login-box{width:300px;} }
 
-    .upload-label:hover {
-      background: #777;
-      color: white;
-    }
-
-    .progress {
-      margin-top: 10px;
-      font-size: 14px;
-    }
-  </style>
+  /* scrollbar small */
+  #fileList::-webkit-scrollbar{width:10px}
+  #fileList::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:8px}
+</style>
 </head>
 <body>
-  <canvas id="bg"></canvas>
-  <div class="container">
-    <label for="fileInput" class="upload-label">Choose File</label>
-    <input type="file" id="fileInput" />
-    <div class="progress" id="progressText"></div>
-    <div class="file-grid" id="fileGrid"></div>
+  <!-- Canvas background -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- App UI -->
+  <div class="app-root">
+    <div class="container">
+      <!-- Login overlay (centered) -->
+      <div id="loginPage">
+        <div class="login-box">
+          <h2 style="color:var(--white);margin-bottom:6px">Enter View ID</h2>
+          <input id="viewId" class="input" type="password" placeholder="••••" />
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+            <button id="loginBtn" class="btn small">Log In</button>
+            <button id="demoBtn" class="btn small secondary" title="Use 12321">Use 12321</button>
+          </div>
+          <div id="loginError" class="error"></div>
+        </div>
+      </div>
+
+      <!-- Main app (hidden until login) -->
+      <div id="appPage" style="display:none;">
+        <div class="header">
+          <div class="title">My Storage</div>
+          <div class="controls">
+            <input id="fileInput" type="file" style="display:none" />
+            <button id="chooseBtn" class="choose">Choose</button>
+            <button id="uploadBtn" class="btn small">Upload</button>
+            <button id="refreshBtn" class="choose secondary">Refresh</button>
+            <button id="logoutBtn" class="choose secondary">Logout</button>
+          </div>
+        </div>
+
+        <div class="grid-wrap">
+          <div id="fileList" aria-live="polite"></div>
+          <div id="pagination"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script>
-    const SUPABASE_URL = "https://dnuvhvcnwmbjttmitcwr.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <!-- upload progress -->
+  <div id="progressContainer">
+    <progress id="uploadProgress" max="100" value="0" style="width:260px;"></progress>
+    <div id="progressText" style="color:var(--muted);margin-top:8px;text-align:center">0%</div>
+    <div id="uploadError" style="color:#ff8b8b;margin-top:6px"></div>
+  </div>
 
-    const fileGrid = document.getElementById("fileGrid");
-    const fileInput = document.getElementById("fileInput");
-    const progressText = document.getElementById("progressText");
+  <!-- image modal -->
+  <div id="imgModal"><button id="closeImg">Close</button><img id="modalImg" src=""></div>
 
-    fileInput.addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const fileName = `uploads/${Date.now()}_${file.name}`;
-      progressText.textContent = "Uploading...";
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-      const { data, error } = await supabase.storage.from("my-storage").upload(fileName, file);
-      if (error) {
-        alert("Upload failed!");
-      } else {
-        alert("Uploaded successfully!");
-        loadFiles();
-      }
-      progressText.textContent = "";
-    });
+const SUPABASE_URL = 'https://dnuvhvcnwmbjttmitcwr.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI';
 
-    async function loadFiles() {
-      fileGrid.innerHTML = "Loading...";
-      const { data, error } = await supabase.storage.from("my-storage").list("uploads", { limit: 100 });
-      if (error) {
-        fileGrid.innerHTML = "Failed to load files.";
-        console.error(error);
-        return;
-      }
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.supabase = supabase; // expose for console if wanted
 
-      fileGrid.innerHTML = "";
-      for (const file of data) {
-        const { data: urlData } = supabase.storage.from("my-storage").getPublicUrl(`uploads/${file.name}`);
-        const card = document.createElement("div");
-        card.className = "file-card";
+const BUCKET = 'my-storage';
+const FOLDER = 'uploads/';
+const VIEW_ID = '12321';
 
-        const img = document.createElement("img");
-        img.src = urlData.publicUrl;
-        img.alt = file.name;
+const $ = s => document.querySelector(s);
 
-        img.onclick = () => {
-          const overlay = document.createElement("div");
-          overlay.style.position = "fixed";
-          overlay.style.top = "0";
-          overlay.style.left = "0";
-          overlay.style.width = "100%";
-          overlay.style.height = "100%";
-          overlay.style.background = "rgba(0,0,0,0.9)";
-          overlay.style.display = "flex";
-          overlay.style.alignItems = "center";
-          overlay.style.justifyContent = "center";
-          overlay.style.zIndex = "10";
+let currentPage = 1;
+const itemsPerPage = 25; // 5x5
 
-          const large = document.createElement("img");
-          large.src = urlData.publicUrl;
-          large.style.maxWidth = "80%";
-          large.style.maxHeight = "80%";
-          overlay.appendChild(large);
+function showLoginError(msg){ $('#loginError').textContent = msg || ''; }
+function showUploadError(msg){ $('#uploadError').textContent = msg || ''; }
 
-          overlay.onclick = () => overlay.remove();
-          document.body.appendChild(overlay);
-        };
+async function uploadFile(file){
+  if(!file) return showUploadError('No file selected');
+  showUploadError('');
+  $('#progressContainer').style.display = 'block';
+  $('#uploadProgress').value = 0;
+  $('#progressText').textContent = '0%';
 
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "Delete";
-        deleteBtn.onclick = async (e) => {
-          e.stopPropagation();
-          await supabase.storage.from("my-storage").remove([`uploads/${file.name}`]);
-          loadFiles();
-        };
+  const path = `${FOLDER}${file.name}`;
+  try {
+    // note: Supabase JS upload doesn't provide progress callbacks with this method
+    // show a simple animated progress: jump to 40% then 100% on success
+    $('#uploadProgress').value = 30; $('#progressText').textContent = '30%';
+    const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+    if(error) throw error;
+    $('#uploadProgress').value = 100; $('#progressText').textContent = '100%';
+    setTimeout(()=>{ $('#progressContainer').style.display = 'none'; listFiles(); }, 400);
+  } catch(err){
+    $('#progressContainer').style.display = 'none';
+    showUploadError('Upload failed: ' + (err.message || err));
+    console.error(err);
+  }
+}
 
-        const renameBtn = document.createElement("button");
-        renameBtn.textContent = "Rename";
-        renameBtn.onclick = async (e) => {
-          e.stopPropagation();
-          const newName = prompt("Enter new name:");
-          if (!newName) return;
-          const { data: fileData } = await supabase.storage.from("my-storage").download(`uploads/${file.name}`);
-          await supabase.storage.from("my-storage").upload(`uploads/${newName}`, fileData, { upsert: true });
-          await supabase.storage.from("my-storage").remove([`uploads/${file.name}`]);
-          loadFiles();
-        };
-
-        card.appendChild(img);
-        card.appendChild(deleteBtn);
-        card.appendChild(renameBtn);
-        fileGrid.appendChild(card);
-      }
+async function listFiles(){
+  const container = $('#fileList');
+  container.innerHTML = '';
+  $('#pagination').innerHTML = '';
+  try {
+    const { data: files, error } = await supabase.storage.from(BUCKET).list(FOLDER, { limit:1000 });
+    if(error) throw error;
+    if(!files || files.length === 0){
+      container.innerHTML = '<div class="empty">No files uploaded yet.</div>';
+      return;
     }
 
-    loadFiles();
+    files.sort((a,b) => a.name.localeCompare(b.name, {numeric:true, sensitivity:'base'}));
+    const totalPages = Math.max(1, Math.ceil(files.length / itemsPerPage));
+    if(currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * itemsPerPage;
+    const pageFiles = files.slice(start, start + itemsPerPage);
 
-    // Animated background
-    const canvas = document.getElementById("bg");
-    const ctx = canvas.getContext("2d");
-    let w, h, particles;
+    for(const f of pageFiles){
+      const filePath = `${FOLDER}${f.name}`;
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+      const url = data.publicUrl;
+      const isImage = /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(f.name);
 
-    function resize() {
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
-      particles = Array.from({ length: 100 }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.7,
-        vy: (Math.random() - 0.5) * 0.7,
-      }));
+      const card = document.createElement('div');
+      card.className = 'file-card';
+      card.innerHTML = `
+        <div class="left">
+          ${ isImage ? `<img src="${url}" alt="${f.name}" class="preview">` : `<div style="height:140px;display:flex;align-items:center;justify-content:center;font-size:28px">📄</div>` }
+        </div>
+        <div class="right">
+          <div class="file-name">${f.name}</div>
+          <div class="file-actions">
+            <div class="left">
+              <button class="del" data-name="${f.name}">Delete</button>
+              <button class="rename" data-name="${f.name}">Rename</button>
+            </div>
+            <a class="download" href="${url}" target="_blank" rel="noopener">Download</a>
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
     }
 
-    window.onresize = resize;
-    resize();
+    // pagination buttons
+    if(totalPages > 1){
+      const pg = $('#pagination');
+      const prev = document.createElement('button'); prev.className='btn small secondary'; prev.textContent='‹'; prev.disabled = currentPage===1;
+      prev.addEventListener('click', ()=>{ currentPage = Math.max(1, currentPage-1); listFiles();});
+      pg.appendChild(prev);
 
-    function draw() {
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "white";
-      particles.forEach((p) => {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0 || p.x > w) p.vx *= -1;
-        if (p.y < 0 || p.y > h) p.vy *= -1;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-        ctx.fill();
+      for(let i=1;i<=totalPages;i++){
+        const b = document.createElement('button'); b.className='btn small'; b.textContent = i;
+        if(i===currentPage){ b.classList.add('active'); b.disabled = true; }
+        b.addEventListener('click', ()=>{ currentPage = i; listFiles(); });
+        pg.appendChild(b);
+      }
+
+      const next = document.createElement('button'); next.className='btn small secondary'; next.textContent='›'; next.disabled = currentPage===totalPages;
+      next.addEventListener('click', ()=>{ currentPage = Math.min(totalPages, currentPage+1); listFiles();});
+      pg.appendChild(next);
+    }
+
+  } catch(err){
+    container.innerHTML = '<div class="empty">Failed to load files</div>';
+    console.error(err);
+  }
+}
+
+async function deleteFile(name){
+  if(!confirm(`Delete "${name}"?`)) return;
+  try {
+    const { error } = await supabase.storage.from(BUCKET).remove([`${FOLDER}${name}`]);
+    if(error) throw error;
+    listFiles();
+  } catch(err){
+    alert('Delete failed: ' + (err.message || err));
+    console.error(err);
+  }
+}
+
+async function renameFile(oldName){
+  const newName = prompt('Enter new name for: ', oldName);
+  if(!newName || newName === oldName) return;
+  try {
+    const { error } = await supabase.storage.from(BUCKET).move(`${FOLDER}${oldName}`, `${FOLDER}${newName}`);
+    if(error) throw error;
+    listFiles();
+  } catch(err){
+    alert('Rename failed: ' + (err.message || err));
+    console.error(err);
+  }
+}
+
+/* ----------------- UI and event delegation ----------------- */
+function setupUI(){
+  // login
+  $('#loginBtn').addEventListener('click', ()=> {
+    const val = $('#viewId').value.trim();
+    if(val === VIEW_ID){ sessionStorage.setItem('loggedIn', 'true'); $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
+    else showLoginError('Incorrect ID');
+  });
+  $('#demoBtn').addEventListener('click', ()=> { $('#viewId').value = VIEW_ID; $('#loginBtn').click(); });
+
+  // choose button triggers file input
+  $('#chooseBtn').addEventListener('click', ()=> $('#fileInput').click());
+
+  // upload button triggers currently selected file (or choose input)
+  $('#uploadBtn').addEventListener('click', ()=> {
+    const f = $('#fileInput').files[0];
+    if(f) uploadFile(f);
+    else { $('#fileInput').click(); }
+  });
+
+  // file input change
+  $('#fileInput').addEventListener('change', (e)=> {
+    const f = e.target.files[0];
+    if(f) uploadFile(f);
+  });
+
+  // refresh
+  $('#refreshBtn').addEventListener('click', ()=> listFiles());
+
+  // logout
+  $('#logoutBtn').addEventListener('click', ()=> {
+    sessionStorage.removeItem('loggedIn');
+    $('#appPage').style.display = 'none';
+    $('#loginPage').style.display = 'flex';
+    $('#viewId').value = '';
+  });
+
+  // fileList delegation for delete/rename/download and image click
+  $('#fileList').addEventListener('click', (e) => {
+    const del = e.target.closest('button.del');
+    if(del){ e.stopPropagation(); deleteFile(del.dataset.name); return; }
+    const ren = e.target.closest('button.rename');
+    if(ren){ e.stopPropagation(); renameFile(ren.dataset.name); return; }
+    const img = e.target.closest('img.preview');
+    if(img){
+      $('#modalImg').src = img.src;
+      $('#imgModal').style.display = 'flex';
+    }
+  });
+
+  // close image modal
+  $('#closeImg').addEventListener('click', ()=> $('#imgModal').style.display = 'none');
+}
+
+/* ------------------- initial render: show login overlay ------------------ */
+function init(){
+  setupUI();
+  const logged = sessionStorage.getItem('loggedIn') === 'true';
+  if(logged){ $('#loginPage').style.display = 'none'; $('#appPage').style.display = 'block'; listFiles(); }
+  else { $('#loginPage').style.display = 'flex'; $('#appPage').style.display = 'none'; }
+}
+
+init();
+</script>
+
+<script>
+/* ------------------ WHITE PARTICLE NETWORK ON BLACK CANVAS ------------------ */
+/* Self-contained; reacts to mouse and hovers near particles */
+(() => {
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  let W = innerWidth, H = innerHeight;
+  let DPR = Math.max(1, devicePixelRatio || 1);
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+
+  let mouse = { x: -9999, y: -9999, active: false };
+  const POINTS = Math.max(60, Math.min(220, Math.round((W*H)/90000)));
+  let points = [];
+
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+
+  function resize(){
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    // recreate density based on size
+    createPoints();
+  }
+
+  function createPoints(){
+    points = [];
+    const count = POINTS;
+    for(let i=0;i<count;i++){
+      points.push({
+        x: rand(0, W),
+        y: rand(0, H),
+        vx: rand(-0.25,0.25),
+        vy: rand(-0.25,0.25),
+        r: rand(0.8,1.8)
       });
+    }
+  }
 
-      ctx.strokeStyle = "rgba(255,255,255,0.3)";
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 100) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.stroke();
+  function step(){
+    ctx.clearRect(0,0,W,H);
+    // draw lines between close points (white)
+    for(let i=0;i<points.length;i++){
+      const a = points[i];
+      // move
+      a.x += a.vx; a.y += a.vy;
+      if(a.x < -30) a.x = W + 30; if(a.x > W + 30) a.x = -30;
+      if(a.y < -30) a.y = H + 30; if(a.y > H + 30) a.y = -30;
+    }
+
+    // lines
+    for(let i=0;i<points.length;i++){
+      for(let j=i+1;j<points.length;j++){
+        const a = points[i], b = points[j];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if(d < 160){
+          let alpha = 0.22 * (1 - d/160);
+          // increase alpha if near mouse
+          if(mouse.active){
+            const mdx = (a.x + b.x)/2 - mouse.x;
+            const mdy = (a.y + b.y)/2 - mouse.y;
+            const md = Math.sqrt(mdx*mdx + mdy*mdy);
+            if(md < 220) alpha += (1 - md/220) * 0.35;
           }
+          ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
+          ctx.lineWidth = 0.9;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
         }
       }
-
-      requestAnimationFrame(draw);
     }
 
-    draw();
-  </script>
+    // points
+    for(const p of points){
+      let sz = p.r;
+      if(mouse.active){
+        const dx = p.x - mouse.x, dy = p.y - mouse.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if(d < 160){
+          const add = (160 - d)/160;
+          p.x += (dx/d || 0) * add * 1.8; // slight repel
+          p.y += (dy/d || 0) * add * 1.8;
+          sz = p.r + add*1.6;
+        }
+      }
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255,255,255,${0.9 - sz*0.25})`;
+      ctx.arc(p.x, p.y, sz, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    requestAnimationFrame(step);
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', (e)=>{ mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; });
+  window.addEventListener('mouseout', ()=>{ mouse.x = -9999; mouse.y = -9999; mouse.active = false; });
+
+  createPoints();
+  step();
+})();
+</script>
 </body>
 </html>
