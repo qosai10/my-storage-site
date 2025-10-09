@@ -1,331 +1,552 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Storage</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>My Storage — Reactive Background</title>
 
 <script type="module">
+/* --------------------------- SUPABASE + APP LOGIC -------------------------- */
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
 const SUPABASE_URL = "https://dnuvhvcnwmbjttmitcwr.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.supabase = supabase;
 
 const BUCKET = "my-storage";
 const FOLDER = "uploads/";
 const VIEW_ID = "12321";
 
-const $ = (sel) => document.querySelector(sel);
-const showError = (msg) => ($("#uploadError").textContent = msg || "");
+const $ = s => document.querySelector(s);
+const showError = (msg="") => { const el = $("#uploadError"); if(el) el.textContent = msg; };
+
+let currentPage = 1;
+const itemsPerPage = 25; // 5x5
 
 async function uploadFile(file) {
-  if (!file) return showError("No file selected.");
+  if(!file) return showError("No file selected");
   showError("");
-  $("#uploadProgress").value = 0;
   $("#progressContainer").style.display = "flex";
+  $("#uploadProgress").value = 0;
+  $("#progressPct").textContent = "0%";
 
   const path = `${FOLDER}${file.name}`;
   try {
+    // Supabase JS doesn't expose per-file progress; we show indeterminate-to-complete animation
+    $("#uploadProgress").value = 30;
+    $("#progressPct").textContent = "30%";
     const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
-    if (error) throw error;
+    if(error) throw error;
     $("#uploadProgress").value = 100;
-    setTimeout(() => {
-      $("#progressContainer").style.display = "none";
-      listFiles();
-    }, 600);
-  } catch (err) {
+    $("#progressPct").textContent = "100%";
+    setTimeout(()=> { $("#progressContainer").style.display = "none"; listFiles(); }, 500);
+  } catch(err) {
     $("#progressContainer").style.display = "none";
-    showError("Upload failed: " + err.message);
+    showError("Upload failed: " + (err.message || err));
+    console.error(err);
   }
 }
 
 async function listFiles() {
-  const list = $("#fileList");
-  list.innerHTML = "";
-  const { data: files, error } = await supabase.storage.from(BUCKET).list(FOLDER);
-  if (error) return showError("Failed to load files: " + error.message);
+  const container = $("#fileList");
+  container.innerHTML = "";
+  showError("");
+  try {
+    const { data: files, error } = await supabase.storage.from(BUCKET).list(FOLDER, { limit: 1000 });
+    if(error) throw error;
+    if(!files || files.length === 0) {
+      container.innerHTML = `<div class="empty">No files uploaded yet.</div>`;
+      $("#pagination").innerHTML = "";
+      return;
+    }
 
-  if (!files || files.length === 0) {
-    list.innerHTML = '<div class="empty">No files uploaded yet.</div>';
-    return;
-  }
+    files.sort((a,b) => a.name.localeCompare(b.name, {numeric:true, sensitivity:'base'}));
+    const totalPages = Math.max(1, Math.ceil(files.length / itemsPerPage));
+    if(currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage-1)*itemsPerPage;
+    const pageFiles = files.slice(start, start + itemsPerPage);
 
-  for (const f of files) {
-    const filePath = `${FOLDER}${f.name}`;
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
-    const url = data.publicUrl;
-    const isImage = /\.(jpe?g|png|gif|webp)$/i.test(f.name);
+    for(const f of pageFiles) {
+      const filePath = `${FOLDER}${f.name}`;
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+      const url = data.publicUrl;
+      const isImage = /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(f.name);
 
-    const card = document.createElement("div");
-    card.className = "file-card";
-    card.innerHTML = `
-      ${isImage ? `<img src="${url}" alt="${f.name}" class="preview" />` : `<div class="file-icon">📄</div>`}
-      <div class="file-name">${f.name}</div>
-      <div class="file-actions">
-        <button class="btn small danger" data-del="${f.name}">Delete</button>
-        <button class="btn small rename" data-ren="${f.name}">Rename</button>
-        <a class="btn small secondary" href="${url}" target="_blank">Download</a>
-      </div>
-    `;
-    list.appendChild(card);
+      const card = document.createElement("div");
+      card.className = "file-card";
+      card.innerHTML = `
+        <div class="left">
+          ${isImage ? `<img class="preview" src="${url}" alt="${f.name}">` : `<div class="file-icon">📄</div>`}
+        </div>
+        <div class="right">
+          <div class="file-name" title="${f.name}">${f.name}</div>
+          <div class="file-actions">
+            <button class="btn del" data-name="${f.name}">Delete</button>
+            <button class="btn rename" data-name="${f.name}">Rename</button>
+            <a class="btn download" href="${url}" target="_blank" rel="noopener">Download</a>
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+    }
+
+    // build pagination (5x5 fixed per page)
+    const pg = $("#pagination");
+    pg.innerHTML = "";
+    if(totalPages > 1) {
+      const prev = document.createElement("button"); prev.className="btn small secondary"; prev.textContent="‹"; prev.disabled = currentPage===1;
+      prev.addEventListener("click", ()=>{ currentPage = Math.max(1, currentPage-1); listFiles(); });
+      pg.appendChild(prev);
+
+      for(let i=1;i<=totalPages;i++){
+        const b = document.createElement("button");
+        b.className = "btn small";
+        b.textContent = i;
+        if(i===currentPage) { b.classList.add("active"); b.disabled = true; }
+        b.addEventListener("click", ()=>{ currentPage = i; listFiles(); });
+        pg.appendChild(b);
+      }
+
+      const next = document.createElement("button"); next.className="btn small secondary"; next.textContent="›"; next.disabled = currentPage===totalPages;
+      next.addEventListener("click", ()=>{ currentPage = Math.min(totalPages, currentPage+1); listFiles(); });
+      pg.appendChild(next);
+    }
+
+  } catch(err) {
+    container.innerHTML = `<div class="empty">Failed to load files</div>`;
+    showError(err.message || err);
+    console.error(err);
   }
 }
 
 async function deleteFile(name) {
-  if (!confirm(`Delete "${name}"?`)) return;
-  const { error } = await supabase.storage.from(BUCKET).remove([`${FOLDER}${name}`]);
-  if (error) return showError("Delete failed: " + error.message);
-  listFiles();
+  if(!confirm(`Delete "${name}"?`)) return;
+  try {
+    const { error } = await supabase.storage.from(BUCKET).remove([`${FOLDER}${name}`]);
+    if(error) throw error;
+    listFiles();
+  } catch(err) {
+    showError("Delete failed: " + (err.message||err));
+  }
 }
 
 async function renameFile(oldName) {
-  const newName = prompt("Enter new name:", oldName);
-  if (!newName || newName === oldName) return;
-  const from = `${FOLDER}${oldName}`;
-  const to = `${FOLDER}${newName}`;
-  const { error } = await supabase.storage.from(BUCKET).move(from, to);
-  if (error) return showError("Rename failed: " + error.message);
-  listFiles();
+  const newName = prompt("Rename file to:", oldName);
+  if(!newName || newName === oldName) return;
+  try {
+    const { error } = await supabase.storage.from(BUCKET).move(`${FOLDER}${oldName}`, `${FOLDER}${newName}`);
+    if(error) throw error;
+    listFiles();
+  } catch(err) {
+    showError("Rename failed: " + (err.message||err));
+  }
 }
 
+/* ----------------------- UI & EVENT BINDING (delegation) ----------------------- */
+function setupUI() {
+  // login/logout
+  $("#loginBtn").addEventListener("click", doLogin);
+  $("#viewId").addEventListener("keydown", e => e.key === "Enter" && doLogin());
+  $("#logoutBtn").addEventListener("click", () => { sessionStorage.removeItem("loggedIn"); renderApp(); });
+
+  // upload
+  $("#fileInput").addEventListener("change", e => {
+    const f = e.target.files[0];
+    if(f) uploadFile(f);
+  });
+  // Choose label triggers file input
+  $("#chooseFile").addEventListener("click", ()=> $("#fileInput").click());
+
+  // drag & drop on fileList container
+  const dropArea = $("#fileList");
+  dropArea.addEventListener("dragover", e => { e.preventDefault(); dropArea.classList.add("dragover"); });
+  dropArea.addEventListener("dragleave", e => { e.preventDefault(); dropArea.classList.remove("dragover"); });
+  dropArea.addEventListener("drop", e => { e.preventDefault(); dropArea.classList.remove("dragover"); const file = e.dataTransfer.files[0]; if(file) uploadFile(file); });
+
+  // delegation for card clicks (buttons + image)
+  $("#fileList").addEventListener("click", (e) => {
+    // Delete
+    const del = e.target.closest("button.del");
+    if(del) { e.stopPropagation(); deleteFile(del.dataset.name); return; }
+    // Rename
+    const ren = e.target.closest("button.rename");
+    if(ren) { e.stopPropagation(); renameFile(ren.dataset.name); return; }
+    // Image click opens modal
+    const img = e.target.closest("img.preview");
+    if(img) {
+      $("#modalImg").src = img.src;
+      $("#imgModal").style.display = "flex";
+    }
+  });
+
+  // close modal
+  $("#closeModal").addEventListener("click", ()=> $("#imgModal").style.display = "none");
+
+  // refresh button
+  $("#refreshBtn").addEventListener("click", () => listFiles());
+}
+
+/* --------------------------- Login & Render --------------------------- */
 function doLogin() {
   const id = $("#viewId").value.trim();
-  if (id === VIEW_ID) {
-    sessionStorage.setItem("loggedIn", "true");
+  if(id === VIEW_ID) {
+    sessionStorage.setItem("loggedIn","true");
     renderApp();
-  } else $("#loginError").textContent = "Incorrect ID";
+  } else {
+    $("#loginError").textContent = "Incorrect ID";
+  }
 }
-
-function doLogout() {
-  sessionStorage.removeItem("loggedIn");
-  renderApp();
-}
-
 function renderApp() {
   const logged = sessionStorage.getItem("loggedIn") === "true";
   $("#loginPage").style.display = logged ? "none" : "flex";
   $("#appPage").style.display = logged ? "flex" : "none";
-  if (logged) listFiles();
+  if(logged) {
+    currentPage = 1;
+    listFiles();
+  }
 }
 
-window.addEventListener("load", () => {
-  $("#loginBtn").addEventListener("click", doLogin);
-  $("#viewId").addEventListener("keydown", (e) => e.key === "Enter" && doLogin());
-  $("#logoutBtn").addEventListener("click", doLogout);
-  $("#uploadBtn").addEventListener("click", () => {
-    const f = $("#fileInput").files[0];
-    if (f) uploadFile(f);
-  });
-  $("#fileList").addEventListener("click", (e) => {
-    const del = e.target.dataset.del;
-    const ren = e.target.dataset.ren;
-    if (del) deleteFile(del);
-    if (ren) renameFile(ren);
-  });
-  $("#fileList").addEventListener("click", (e) => {
-    const img = e.target.closest(".preview");
-    if (!img) return;
-    $("#modalImg").src = img.src;
-    $("#imgModal").style.display = "flex";
-  });
-  $("#closeModal").addEventListener("click", () => ($("#imgModal").style.display = "none"));
+/* --------------------------- Start on load ---------------------------- */
+window.addEventListener("load", ()=> {
+  setupUI();
   renderApp();
 });
 </script>
 
 <style>
-:root {
-  --bg: #120707;
-  --card: #1d0b0b;
+/* --------------------------- base colors / layout -------------------------- */
+:root{
+  --bg-dark: #0d0404;
+  --card: #1a0e0e;
   --accent: #ff4c4c;
+  --muted: #b9a8a8;
+  --glass: rgba(255,255,255,0.03);
+  --radius: 12px;
+  --max-width: 1200px;
+  --gutter: 14px;
   --text: #fff;
-  --radius: 14px;
 }
 
-body, html {
-  margin: 0;
-  height: 100%;
-  background: linear-gradient(160deg, var(--bg), #2c0e0e);
-  color: var(--text);
-  font-family: "Segoe UI", sans-serif;
-  overflow: hidden;
+/* make room for background canvas (z-index layering) */
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:transparent;color:var(--text);font-family:Inter, "Segoe UI", system-ui, sans-serif;}
+
+/* background canvas sits behind everything */
+#bgCanvas { position: fixed; inset: 0; z-index: 0; }
+
+/* app UI sits above canvas */
+.app-root { position: relative; z-index: 2; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:28px; }
+
+/* center container */
+.container {
+  width:100%;
+  max-width: var(--max-width);
+  display:flex;
+  flex-direction:column;
+  gap:16px;
 }
 
-.app-wrap {
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* LOGIN */
-#loginPage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.login-box {
-  background: var(--card);
-  padding: 40px;
+/* header / controls */
+.header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  padding:14px 18px;
   border-radius: var(--radius);
-  text-align: center;
+  border: 1px solid rgba(255,255,255,0.03);
 }
 
-.input {
-  width: 100%;
-  padding: 10px;
+/* left title */
+.title { font-weight:700; letter-spacing:0.3px; color:var(--accent); }
+
+/* controls */
+.controls { display:flex; gap:8px; align-items:center; }
+.btn { background:var(--accent); color:#1a0e0e; border:none; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:600; }
+.btn.small { padding:6px 10px; font-size:13px; }
+.btn.secondary { background: rgba(255,255,255,0.06); color:var(--text); }
+.btn.danger { background:#c63030; color:#fff; }
+
+#chooseFile { background: linear-gradient(90deg, rgba(255,76,76,0.95), rgba(255,60,60,0.9)); }
+
+/* main grid area — make sure it sits in a rectangle */
+.grid-wrap {
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
   border-radius: var(--radius);
-  border: none;
-  outline: none;
-  background: #311212;
-  color: white;
+  padding:14px;
+  border: 1px solid rgba(255,255,255,0.03);
+  height: calc(100vh - 220px);
+  display:flex;
+  flex-direction:column;
 }
 
-.btn {
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: var(--radius);
-  padding: 10px 16px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.btn:hover {
-  opacity: 0.85;
-}
-
-.btn.secondary {
-  background: #333;
-}
-
-.btn.danger {
-  background: #c62828;
-}
-
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--card);
-  padding: 16px 24px;
-  border-radius: var(--radius);
-}
-
+/* file grid: 5 columns, 5 rows visible (25 items). Each card is a horizontal-leaning rectangle but we make visually square-ish by aspect */
 #fileList {
-  flex: 1;
-  padding: 16px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  grid-template-rows: repeat(5, 1fr);
-  gap: 14px;
-  overflow-y: auto;
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-auto-rows: 1fr;
+  gap: var(--gutter);
+  flex:1;
+  overflow-y:auto;
+  padding:6px;
 }
 
+/* each card */
 .file-card {
-  background: var(--card);
-  border-radius: var(--radius);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10px;
-  aspect-ratio: 1 / 1;
-  transition: 0.2s;
+  display:flex;
+  flex-direction:column;
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.18));
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.03);
+  padding:8px;
+  transition: transform .15s, box-shadow .15s;
+  align-items:stretch;
 }
 
-.file-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+/* top area - image preview */
+.file-card .left {
+  flex: 1 1 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  border-radius:8px;
+  background: rgba(0,0,0,0.12);
 }
-
 .file-card img.preview {
-  width: 100%;
-  height: 70%;
-  object-fit: cover;
-  border-radius: var(--radius);
-  cursor: pointer;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  cursor:pointer;
+  display:block;
 }
 
-.file-actions {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  gap: 6px;
+/* file name + actions */
+.file-card .right {
+  margin-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
 }
 
 .file-name {
-  font-size: 12px;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin: 4px 0;
+  font-size:13px;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding:0 4px;
 }
 
-/* MODAL */
-#imgModal {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.8);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
+.file-actions { display:flex; gap:6px; justify-content:space-between; align-items:center; padding:0 4px; }
+
+/* hover */
+.file-card:hover { transform: translateY(-6px); box-shadow: 0 8px 30px rgba(255,76,76,0.06); }
+
+/* small empty state */
+.empty { color: var(--muted); padding:24px; text-align:center; }
+
+/* upload progress */
+#progressContainer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--card); padding:12px; border-radius:10px; z-index:10; }
+
+/* pagination row */
+#pagination { display:flex; gap:8px; justify-content:center; padding-top:8px; }
+
+/* right side logout/controls area small screens stack */
+.header-right { display:flex; gap:8px; align-items:center; }
+
+/* login box styling */
+.login-box {
+  background: rgba(0,0,0,0.25);
+  padding:28px;
+  border-radius:12px;
+  text-align:center;
+  border:1px solid rgba(255,255,255,0.03);
 }
 
-#imgModal img {
-  max-width: 90%;
-  max-height: 90%;
-  border-radius: var(--radius);
-}
+/* modal image */
+#imgModal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:50; background: rgba(0,0,0,0.75); }
+#imgModal img { max-width:92%; max-height:92%; border-radius:12px; }
+#closeModal { position:absolute; top:20px; right:24px; background:var(--accent); border:none; color:#120707; padding:8px 12px; border-radius:8px; cursor:pointer; }
 
-#closeModal {
-  position: absolute;
-  top: 20px; right: 30px;
-  font-size: 28px;
-  cursor: pointer;
-  color: white;
+/* responsive: stack to 3x? */
+@media (max-width:1100px) {
+  #fileList { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width:820px) {
+  #fileList { grid-template-columns: repeat(3, 1fr); }
+  .container { padding: 8px; }
+}
+@media (max-width:520px) {
+  #fileList { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
 </head>
 
 <body>
-<div class="app-wrap">
-  <div id="loginPage">
-    <div class="login-box">
-      <h2>Enter View ID</h2>
-      <input id="viewId" class="input" type="password" placeholder="••••">
-      <button id="loginBtn" class="btn">Log In</button>
-      <div id="loginError" class="error"></div>
+  <!-- background canvas -->
+  <canvas id="bgCanvas"></canvas>
+
+  <div class="app-root">
+    <div class="container">
+      <!-- login -->
+      <div id="loginPage" style="display:flex;align-items:center;justify-content:center;">
+        <div class="login-box">
+          <h2 style="color:var(--accent);margin:0 0 12px">Enter View ID</h2>
+          <input id="viewId" class="input" placeholder="••••" style="padding:10px;border-radius:8px;border:none;background:#1b0b0b;color:#fff;margin-bottom:10px;width:200px;">
+          <div style="display:flex;gap:8px;justify-content:center">
+            <button id="loginBtn" class="btn">Log in</button>
+          </div>
+          <div id="loginError" style="color:#ff8b8b;margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <!-- app -->
+      <div id="appPage" style="display:none; flex-direction:column;">
+        <div class="header">
+          <div class="title">My Storage</div>
+          <div class="header-right">
+            <input id="fileInput" type="file" style="display:none">
+            <button id="chooseFile" class="btn small" title="Choose file">Choose</button>
+            <button id="uploadBtn" class="btn small">Upload</button>
+            <button id="refreshBtn" class="btn small secondary">Refresh</button>
+            <button id="logoutBtn" class="btn small secondary">Logout</button>
+          </div>
+        </div>
+
+        <div class="grid-wrap">
+          <div id="fileList"></div>
+          <div id="pagination" style="margin-top:10px;"></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div id="appPage" style="display:none;flex-direction:column;width:100%;height:100%;">
-    <header>
-      <h2>My Storage</h2>
-      <div>
-        <input type="file" id="fileInput" style="display:none;">
-        <button id="uploadBtn" class="btn">Upload</button>
-        <button id="refreshBtn" class="btn secondary" onclick="location.reload()">Refresh</button>
-        <button id="logoutBtn" class="btn secondary">Logout</button>
-      </div>
-    </header>
-    <div id="fileList"></div>
+  <!-- progress -->
+  <div id="progressContainer">
+    <progress id="uploadProgress" max="100" value="0" style="width:260px;"></progress>
+    <div id="progressPct" style="color:var(--muted);font-size:13px;margin-top:6px">0%</div>
+    <div id="uploadError" style="color:#ff8b8b;margin-top:6px"></div>
   </div>
 
-  <div id="progressContainer" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);padding:20px;border-radius:var(--radius);">
-    <progress id="uploadProgress" value="0" max="100" style="width:220px;"></progress>
-    <div id="uploadError" class="error"></div>
-  </div>
+  <!-- modal -->
+  <div id="imgModal"><button id="closeModal">Close</button><img id="modalImg" src=""></div>
 
-  <div id="imgModal">
-    <span id="closeModal">×</span>
-    <img id="modalImg" src="">
-  </div>
-</div>
+<script>
+/* ------------------------ PARTICLE NETWORK BACKGROUND ------------------------ */
+/* Canvas takes full viewport (bgCanvas). Particles move slowly and draw lines when close.
+   Mouse acts as a strong attractor/repulsor causing lines to react near cursor. */
+
+(() => {
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d', { alpha:true });
+  let width = canvas.width = innerWidth;
+  let height = canvas.height = innerHeight;
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+  let mouse = { x: -9999, y: -9999, r: 120 };
+  let points = [];
+  const POINT_COUNT = Math.round((width * height) / 60000) * 40 + 60; // base density scalable
+
+  function rand(min, max){ return Math.random()*(max-min)+min; }
+
+  function resize(){
+    width = canvas.width = innerWidth * DPR;
+    height = canvas.height = innerHeight * DPR;
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  function createPoints(){
+    points = [];
+    let wanted = Math.max(40, Math.min(220, Math.round((innerWidth*innerHeight)/120000)));
+    for(let i=0;i<wanted;i++){
+      points.push({
+        x: rand(0, innerWidth),
+        y: rand(0, innerHeight),
+        vx: rand(-0.15,0.15),
+        vy: rand(-0.15,0.15),
+        r: rand(0.8,1.6),
+        hue: rand(0, 360)
+      });
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    // subtle background tint
+    // ctx.fillStyle = 'rgba(10,6,6,0.02)'; ctx.fillRect(0,0,innerWidth,innerHeight);
+
+    // draw connections
+    for(let i=0;i<points.length;i++){
+      const p = points[i];
+      // move
+      p.x += p.vx;
+      p.y += p.vy;
+      // wrap edges
+      if(p.x < -20) p.x = innerWidth+20;
+      if(p.x > innerWidth+20) p.x = -20;
+      if(p.y < -20) p.y = innerHeight+20;
+      if(p.y > innerHeight+20) p.y = -20;
+    }
+
+    // lines
+    for(let i=0;i<points.length;i++){
+      for(let j=i+1;j<points.length;j++){
+        const a = points[i], b = points[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if(dist < 160){
+          const alpha = 0.18 * (1 - dist/160);
+          // line color biased red
+          ctx.strokeStyle = 'rgba(255,76,76,'+alpha.toFixed(3)+')';
+          ctx.lineWidth = 0.9;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // draw points
+    for(const p of points){
+      // effect from mouse
+      const dx = p.x - mouse.x;
+      const dy = p.y - mouse.y;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      let sz = p.r;
+      if(d < mouse.r){
+        const push = (mouse.r - d)/mouse.r;
+        // repel slightly
+        const dirx = dx / (d||1);
+        const diry = dy / (d||1);
+        p.x += dirx * push * 2.5;
+        p.y += diry * push * 2.5;
+        sz = p.r + push*1.6;
+      }
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(255,120,120,'+ (0.9 - (sz*0.3)).toFixed(2) +')';
+      ctx.arc(p.x, p.y, sz, 0, Math.PI*2);
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+
+  // mouse move influences nearby points
+  window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  window.addEventListener('mouseleave', ()=> { mouse.x = -9999; mouse.y = -9999; });
+  resize();
+  createPoints();
+  draw();
+})();
+
+/* ---------------- helper dom $ (for non-module parts) ---------------- */
+function $(sel){ return document.querySelector(sel); }
+</script>
 </body>
 </html>
