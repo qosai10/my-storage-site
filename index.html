@@ -189,9 +189,10 @@
     <div id="loginPage">
       <div class="login-box">
         <h2>Enter View ID</h2>
-        <input id="viewId" class="input" type="password" placeholder="Input view ID" />
+        <input id="viewId" class="input" type="password" placeholder="••••" />
         <div class="login-actions" style="margin-top:8px">
           <button id="loginBtn" class="btn primary">Log In</button>
+          <button id="demoBtn" class="btn ghost">Use 12321</button>
         </div>
         <div id="loginError" class="login-error"></div>
       </div>
@@ -665,7 +666,7 @@ document.querySelectorAll('.theme-option').forEach(el=> el.classList.toggle('act
     g.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.06)`);
     g.addColorStop(1, `rgba(255,255,255,0.01)`);
     ctx.fillStyle = g;
-    const amplitude = Math.min(80, Mathmax(12, (W+H)/220));
+    const amplitude = Math.min(80, Math.max(12, (W+H)/220));
     ctx.beginPath();
     for(let x=0;x<=W;x+=20){
       const y = H/2 + Math.sin((x*0.02) + waveT*0.01) * amplitude;
@@ -687,15 +688,3 @@ document.querySelectorAll('.theme-option').forEach(el=> el.classList.toggle('act
 </script>
 </body>
 </html>
-#bgCanvas {
-  pointer-events: none;
-}
-#bgCanvas {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  display: block;
-  background: var(--bg);
-  pointer-events: none; /* ← add this line */
-}
-
