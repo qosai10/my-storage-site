@@ -189,10 +189,9 @@
     <div id="loginPage">
       <div class="login-box">
         <h2>Enter View ID</h2>
-        <input id="viewId" class="input" type="password" placeholder="••••" />
+        <input id="viewId" class="input" type="password" placeholder="Input view id" />
         <div class="login-actions" style="margin-top:8px">
           <button id="loginBtn" class="btn primary">Log In</button>
-          <button id="demoBtn" class="btn ghost">Use 12321</button>
         </div>
         <div id="loginError" class="login-error"></div>
       </div>
@@ -511,7 +510,6 @@ function setupUI(){
     if(val === VIEW_ID){ sessionStorage.setItem('loggedIn','true'); $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
     else showLoginError('Incorrect ID');
   });
-  $('#demoBtn').addEventListener('click', ()=> { $('#viewId').value = VIEW_ID; $('#loginBtn').click(); });
 
   $('#chooseBtn').addEventListener('click', ()=> $('#fileInput').click());
   $('#uploadBtn').addEventListener('click', ()=> {
