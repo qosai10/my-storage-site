@@ -3,48 +3,62 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>My Storage — Customizable</title>
+<title>My Storage — Final Custom</title>
 
+<!-- Single-file app: everything inline -->
 <style>
   :root{
-    /* layout */
-    --max-width: 1200px;
-    --card-w: 220px;          /* card width */
-    --card-h: 220px;          /* card height (fixed square area) */
-    --panel-radius: 14px;
-    --glass-blur: 10px;
+    --max-width:1200px;
+    --card-size:220px;         /* square card size */
+    --panel-radius:14px;
+    --glass-blur:10px;
+    --font-family: Inter, "Segoe UI", system-ui, -apple-system, Arial;
 
-    /* default theme colors (black theme) */
+    /* theme tokens (default black theme) */
     --bg: #000;
     --panel-bg: rgba(255,255,255,0.03);
     --panel-strong: rgba(255,255,255,0.04);
-    --accent: #ff4c4c;
+    --accent: #ff4c4c;        /* main accent */
+    --accent2: #ff9b9b;       /* secondary accent (buttons) */
     --muted: #bdbdbd;
     --text: #ffffff;
     --card-bg: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
     --glow: rgba(255,255,255,0.10);
-    --radius: 12px;
-    --font-family: Inter, "Segoe UI", system-ui, -apple-system, Arial;
+    --radius:12px;
+    --glow-strength:0.10;
+    --control-bg: rgba(255,255,255,0.03);
   }
 
-  /* Theme helper classes will be applied (body.classList) */
-  body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--font-family);overflow:hidden}
+  /* theme helper classes */
+  body.theme-black { --bg:#000; --accent:#ff4c4c; --accent2:#ff9b9b; --muted:#bdbdbd; --text:#fff; }
+  body.theme-white { --bg:#f6f6f6; --panel-bg: rgba(0,0,0,0.04); --panel-strong: rgba(0,0,0,0.06); --accent:#111; --accent2:#555; --muted:#333; --text:#111; --card-bg: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.04)); }
+  body.theme-red   { --bg:#120707; --accent:#ff4c4c; --accent2:#ff9b9b; --muted:#d5bdbd; --text:#fff; }
+  body.theme-blue  { --bg:#071221; --accent:#4c8cff; --accent2:#9bc3ff; --muted:#b8cfe6; --text:#fff; }
+  body.theme-green { --bg:#07120a; --accent:#4cff88; --accent2:#9bffbf; --muted:#cfe6d5; --text:#fff; }
+  body.theme-purple{ --bg:#0b0712; --accent:#b84cff; --accent2:#d9a3ff; --muted:#d7cfe6; --text:#fff; }
+  body.theme-gold  { --bg:#0b0701; --accent:#ffb84c; --accent2:#ffd9a3; --muted:#e8d8b8; --text:#fff; }
+  body.theme-gray  { --bg:#101010; --accent:#9aa0a6; --accent2:#cfcfcf; --muted:#9a9a9a; --text:#fff; }
 
-  /* background canvas layer */
+  /* resets */
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);font-family:var(--font-family);color:var(--text);overflow:hidden}
+  a{color:inherit}
+
+  /* background canvas */
   #bgCanvas{position:fixed;inset:0;z-index:0;display:block;background:var(--bg)}
 
   /* app root */
-  .app-root{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+  .app-root{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
   .container{width:100%;max-width:var(--max-width);display:flex;flex-direction:column;gap:12px}
 
-  /* Login overlay */
+  /* login overlay */
   #loginPage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:8;background:linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6))}
   .login-box{width:360px;background:linear-gradient(180deg,var(--panel-bg),var(--panel-strong));padding:30px;border-radius:var(--panel-radius);backdrop-filter:blur(var(--glass-blur));border:1px solid rgba(255,255,255,0.03);text-align:center}
-  .login-box h2{margin:0 0 10px;color:var(--accent)}
-  .input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);outline:none;margin-bottom:10px}
+  .login-box h2{margin:0 0 10px;color:var(--accent);font-size:20px}
+  .input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);outline:none;margin-bottom:10px}
   .login-actions{display:flex;gap:8px;justify-content:center}
-  .btn{cursor:pointer;border:none;padding:10px 14px;border-radius:10px;font-weight:700}
-  .btn.primary{background:linear-gradient(90deg,var(--accent),#ff6b6b);color:#120707}
+  .btn{cursor:pointer;border:none;padding:10px 12px;border-radius:10px;font-weight:700}
+  .btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#120707}
   .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text)}
   .login-error{color:#ff9b9b;margin-top:8px;min-height:18px}
 
@@ -53,19 +67,19 @@
   .title{font-size:20px;font-weight:800;color:var(--accent)}
   .controls{display:flex;gap:8px;align-items:center}
 
-  .control-btn{background:linear-gradient(90deg,var(--accent),#ff6b6b);color:#120707;padding:10px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:700}
+  .control-btn{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#120707;padding:10px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:700}
   .control-btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)}
   .control-btn.white{background:var(--text);color:#120707}
 
   /* main grid panel */
   .grid-wrap{background:linear-gradient(180deg,var(--panel-bg),var(--panel-strong));padding:12px;border-radius:var(--panel-radius);border:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(var(--glass-blur));height:calc(100vh - 160px);display:flex;flex-direction:column;gap:12px;overflow:hidden}
 
-  /* file list: vertical scroll only (no horizontal) */
-  #fileList {
+  /* file list: vertical only */
+  #fileList{
     flex:1;
     display:grid;
-    grid-template-columns: repeat(5, 1fr);
-    grid-auto-rows: var(--card-h);
+    grid-template-columns:repeat(5,1fr);
+    grid-auto-rows:var(--card-size);
     gap:12px;
     padding:8px;
     overflow-y:auto;
@@ -74,9 +88,8 @@
   #fileList::-webkit-scrollbar{width:10px}
   #fileList::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);border-radius:8px}
 
-  /* file card exact sizing */
+  /* file card (exact square) */
   .file-card{
-    width:100%;
     height:100%;
     background:var(--card-bg);
     border-radius:var(--radius);
@@ -86,48 +99,43 @@
     align-items:stretch;
     justify-content:flex-start;
     gap:8px;
-    transition: transform .12s, box-shadow .12s;
+    transition:transform .12s, box-shadow .12s;
     border:1px solid rgba(255,255,255,0.02);
-    box-sizing:border-box;
     min-width:0;
+    box-sizing:border-box;
   }
 
-  /* glow on hover (toggleable) */
+  /* glow hover (toggleable) */
   body.no-glow .file-card:hover{box-shadow:none;transform:none}
-  body:not(.no-glow) .file-card:hover{transform:translateY(-6px);box-shadow:0 14px 40px var(--glow)}
+  body:not(.no-glow) .file-card:hover{transform:translateY(-6px);box-shadow:0 14px 40px var(--glow);}
 
-  /* preview area: fixed box inside card */
+  /* preview container: fixed */
   .preview-wrap{
     width:100%;
-    height: calc(var(--card-h) - 96px); /* leave space for filename + buttons under */
+    height:calc(var(--card-size) - 96px); /* reserve space for name + buttons */
     display:flex;
     align-items:center;
     justify-content:center;
-    background: #060606;
+    background:#060606;
     border-radius:8px;
     overflow:hidden;
   }
   .preview-wrap img{
     width:100%;
     height:100%;
-    object-fit:contain; /* ensure the whole image fits inside without stretching */
+    object-fit:contain; /* show whole image */
     display:block;
+    background:transparent;
   }
 
+  .meta{display:flex;flex-direction:column;gap:6px;justify-content:flex-end}
   .file-name{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
 
-  /* buttons horizontally under the image, centered */
-  .file-actions{
-    display:flex;
-    gap:8px;
-    align-items:center;
-    justify-content:center;
-    padding:0 4px;
-    width:100%;
-  }
+  /* buttons: smaller; each takes 30% */
+  .file-actions{display:flex;gap:8px;align-items:center;justify-content:center;padding:0 4px;width:100%}
   .file-actions button, .file-actions a{
     flex:0 0 30%;
-    padding:8px 6px;
+    padding:6px 6px;
     border-radius:8px;
     border:none;
     background:var(--text);
@@ -136,12 +144,10 @@
     cursor:pointer;
     text-decoration:none;
     text-align:center;
+    font-size:13px;
   }
   .file-actions button.del{background:#9b1f1f;color:#fff}
-  .file-actions a.download{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:8px 6px}
-
-  /* filename + actions container to ensure consistent layout */
-  .meta { display:flex; flex-direction:column; gap:6px; justify-content:flex-end; }
+  .file-actions a.download{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:6px 6px}
 
   /* pagination */
   #pagination{display:flex;gap:8px;justify-content:center;padding:10px}
@@ -154,11 +160,17 @@
   #imgModal img{max-width:92%;max-height:92%;border-radius:12px}
   #imgModal button{position:absolute;top:18px;right:20px;padding:8px 12px;border-radius:8px;border:none;background:var(--text);color:#120707;font-weight:700;cursor:pointer}
 
-  /* settings panel slide-in */
+  /* settings panel */
   .settings-panel{position:fixed;right:-420px;top:0;height:100%;width:400px;background:linear-gradient(180deg,var(--panel-bg),var(--panel-strong));backdrop-filter:blur(var(--glass-blur));padding:18px;border-left:1px solid rgba(255,255,255,0.03);z-index:10;transition:right .28s;overflow:auto}
   .settings-panel.open{right:0}
   .theme-option{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.02);margin-bottom:10px}
+  .theme-option.active{outline:2px solid rgba(255,255,255,0.06)}
   .theme-swatch{width:36px;height:24px;border-radius:6px;border:1px solid rgba(255,255,255,0.06)}
+
+  /* nice inputs */
+  input[type="color"]{background:transparent;border:none;height:36px;width:48px;padding:0;cursor:pointer}
+  select,input[type="range"]{width:100%}
+  .small-muted{font-size:12px;color:var(--muted)}
 
   /* responsive */
   @media (max-width:1200px){ #fileList{grid-template-columns:repeat(4,1fr)} }
@@ -222,34 +234,40 @@
 <div id="settingsPanel" class="settings-panel">
   <h3 style="margin:0 0 10px;color:var(--muted)">Settings & Customization</h3>
 
-  <div style="margin-bottom:8px">Theme</div>
-  <div class="theme-option" data-theme="black"><div class="theme-swatch" style="background:black"></div><div>Black (default)</div></div>
+  <div style="margin-bottom:8px">Pick a theme</div>
+  <div class="theme-option" data-theme="black"><div class="theme-swatch" style="background:black"></div><div>Black</div></div>
   <div class="theme-option" data-theme="white"><div class="theme-swatch" style="background:#f6f6f6;border:1px solid #ddd"></div><div>White</div></div>
-  <div class="theme-option" data-theme="red"><div class="theme-swatch" style="background:linear-gradient(90deg,#ff4c4c,#ff6b6b)"></div><div>Red</div></div>
-  <div class="theme-option" data-theme="blue"><div class="theme-swatch" style="background:linear-gradient(90deg,#4c8cff,#6ba8ff)"></div><div>Blue</div></div>
-  <div class="theme-option" data-theme="green"><div class="theme-swatch" style="background:linear-gradient(90deg,#4cff88,#77ffb3)"></div><div>Green</div></div>
-  <div class="theme-option" data-theme="purple"><div class="theme-swatch" style="background:linear-gradient(90deg,#b84cff,#cf6bff)"></div><div>Purple</div></div>
-  <div class="theme-option" data-theme="mono"><div class="theme-swatch" style="background:linear-gradient(90deg,#999,#666)"></div><div>Monochrome</div></div>
+  <div class="theme-option" data-theme="red"><div class="theme-swatch" style="background:linear-gradient(90deg,#ff4c4c,#ff6b6b)"></div><div>Neon Red</div></div>
+  <div class="theme-option" data-theme="blue"><div class="theme-swatch" style="background:linear-gradient(90deg,#4c8cff,#6ba8ff)"></div><div>Ocean Blue</div></div>
+  <div class="theme-option" data-theme="green"><div class="theme-swatch" style="background:linear-gradient(90deg,#4cff88,#77ffb3)"></div><div>Emerald</div></div>
+  <div class="theme-option" data-theme="purple"><div class="theme-swatch" style="background:linear-gradient(90deg,#b84cff,#cf6bff)"></div><div>Cyber Purple</div></div>
+  <div class="theme-option" data-theme="gold"><div class="theme-swatch" style="background:linear-gradient(90deg,#ffb84c,#ffd9a3)"></div><div>Gold</div></div>
+  <div class="theme-option" data-theme="gray"><div class="theme-swatch" style="background:linear-gradient(90deg,#999,#666)"></div><div>Soft Gray</div></div>
 
   <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
 
   <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <span>Accent color</span>
+    <span class="small-muted">Primary accent</span>
     <input id="accentColor" type="color" value="#ff4c4c">
   </label>
 
   <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <span>Rounded corners</span>
+    <span class="small-muted">Secondary accent (buttons)</span>
+    <input id="accentColor2" type="color" value="#ff9b9b">
+  </label>
+
+  <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span class="small-muted">Rounded corners</span>
     <input id="toggleRadius" type="checkbox" checked>
   </label>
 
   <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <span>Glow effect</span>
+    <span class="small-muted">Glow effect</span>
     <input id="toggleGlow" type="checkbox" checked>
   </label>
 
   <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <span>Background animation</span>
+    <span class="small-muted">Background anim</span>
     <select id="bgMode">
       <option value="particles">Particles</option>
       <option value="waves">Waves</option>
@@ -258,14 +276,14 @@
   </label>
 
   <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <span>Particles on</span>
+    <span class="small-muted">Particles on</span>
     <input id="toggleParticles" type="checkbox" checked>
   </label>
 
-  <div style="margin-top:8px">Particle density</div>
+  <div style="margin-top:8px" class="small-muted">Particle density</div>
   <input id="particleRange" type="range" min="20" max="300" value="120" style="width:100%;margin-top:8px">
 
-  <div style="margin-top:12px">Font</div>
+  <div style="margin-top:12px" class="small-muted">Font</div>
   <select id="fontSelect" style="width:100%;margin-top:8px;">
     <option value="Inter, system-ui, -apple-system, 'Segoe UI', Arial">Inter (default)</option>
     <option value="'Segoe UI', system-ui, -apple-system, Arial">Segoe UI</option>
@@ -273,13 +291,13 @@
     <option value="'Courier New', monospace">Monospace</option>
   </select>
 
-  <div style="height:14px"></div>
+  <div style="height:12px"></div>
   <button id="saveSettings" class="btn primary" style="width:100%">Save Settings</button>
   <div style="height:8px"></div>
   <button id="closeSettings" class="btn ghost" style="width:100%">Close</button>
 </div>
 
-<!-- Supabase + App logic -->
+<!-- app logic (supabase + UI) -->
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -296,11 +314,12 @@ const $ = s => document.querySelector(s);
 let currentPage = 1;
 const itemsPerPage = 25; // 5x5
 
-/* Settings persistence */
-const SETTINGS_KEY = 'my_storage_settings_v1';
+/* settings persistence */
+const SETTINGS_KEY = 'my_storage_settings_v2';
 const defaultSettings = {
   theme: 'black',
   accent: '#ff4c4c',
+  accent2: '#ff9b9b',
   radiusOn: true,
   glowOn: true,
   bgMode: 'particles',
@@ -309,66 +328,48 @@ const defaultSettings = {
   font: "Inter, system-ui, -apple-system, 'Segoe UI', Arial"
 };
 
-function loadSettings(){
-  try{
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if(!raw) return {...defaultSettings};
-    return {...defaultSettings, ...JSON.parse(raw)};
-  }catch(e){ return {...defaultSettings}; }
-}
-function saveSettings(s){
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-}
+function loadSettings(){ try{ const raw = localStorage.getItem(SETTINGS_KEY); return raw ? {...defaultSettings, ...JSON.parse(raw)} : {...defaultSettings}; }catch(e){ return {...defaultSettings}; } }
+function saveSettings(s){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
 
-/* apply settings to DOM */
+let SETTINGS = loadSettings();
+
+/* apply settings */
 function applySettings(s){
-  // theme classes
-  document.body.classList.remove('theme-black','theme-white','theme-red','theme-blue','theme-green','theme-purple','theme-mono');
-  if(s.theme === 'white') document.body.classList.add('theme-white');
-  else if(s.theme === 'red') document.body.classList.add('theme-red');
-  else if(s.theme === 'blue') document.body.classList.add('theme-blue');
-  else if(s.theme === 'green') document.body.classList.add('theme-green');
-  else if(s.theme === 'purple') document.body.classList.add('theme-purple');
-  else if(s.theme === 'mono') document.body.classList.add('theme-mono');
-  else document.body.classList.add('theme-black');
+  // theme
+  document.body.classList.remove('theme-black','theme-white','theme-red','theme-blue','theme-green','theme-purple','theme-gold','theme-gray');
+  if(s.theme) document.body.classList.add('theme-'+s.theme);
 
-  // accent
+  // accents
   document.documentElement.style.setProperty('--accent', s.accent);
+  document.documentElement.style.setProperty('--accent2', s.accent2);
 
   // radius
-  if(s.radiusOn) document.documentElement.style.setProperty('--radius', '12px');
-  else document.documentElement.style.setProperty('--radius', '2px');
+  document.documentElement.style.setProperty('--radius', s.radiusOn ? '12px' : '4px');
 
   // glow
-  if(s.glowOn) document.body.classList.remove('no-glow');
-  else document.body.classList.add('no-glow');
+  if(s.glowOn) document.body.classList.remove('no-glow'); else document.body.classList.add('no-glow');
+  document.documentElement.style.setProperty('--glow', s.glowOn ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0)');
 
   // font
   document.documentElement.style.setProperty('--font-family', s.font);
   document.body.style.fontFamily = s.font;
 
-  // background animation mode
-  if(s.bgMode === 'particles'){
-    window.Particles && window.Particles.start();
-    window.Waves && window.Waves.stop && window.Waves.stop();
-  } else if(s.bgMode === 'waves'){
-    window.Particles && window.Particles.stop && window.Particles.stop();
-    window.Waves && window.Waves.start && window.Waves.start();
-  } else {
-    window.Particles && window.Particles.stop && window.Particles.stop();
-    window.Waves && window.Waves.stop && window.Waves.stop && window.Waves.stop();
-  }
+  // bg mode + particles
+  if(s.bgMode === 'particles'){ window.Particles && window.Particles.start(); window.Waves && window.Waves.stop && window.Waves.stop(); }
+  else if(s.bgMode === 'waves'){ window.Particles && window.Particles.stop && window.Particles.stop(); window.Waves && window.Waves.start && window.Waves.start(); }
+  else { window.Particles && window.Particles.stop && window.Particles.stop(); window.Waves && window.Waves.stop && window.Waves.stop(); }
 
-  // particle toggles and density
   if(window.Particles){
     if(s.particlesOn) window.Particles.start(); else window.Particles.stop();
     window.Particles.setDensity(s.particleDensity);
   }
 }
 
-/* init settings UI values from stored */
+/* populate settings UI */
 function populateSettingsUI(s){
+  document.querySelectorAll('.theme-option').forEach(el => el.classList.toggle('active', el.dataset.theme === s.theme));
   $('#accentColor').value = s.accent;
+  $('#accentColor2').value = s.accent2;
   $('#toggleRadius').checked = s.radiusOn;
   $('#toggleGlow').checked = s.glowOn;
   $('#bgMode').value = s.bgMode;
@@ -377,11 +378,13 @@ function populateSettingsUI(s){
   $('#fontSelect').value = s.font;
 }
 
-/* save settings from UI */
+/* read UI -> settings */
 function readSettingsFromUI(){
+  const active = document.querySelector('.theme-option.active');
   return {
-    theme: document.querySelectorAll('.theme-option.active').length ? document.querySelector('.theme-option.active').dataset.theme : loadSettings().theme,
+    theme: active ? active.dataset.theme : SETTINGS.theme,
     accent: $('#accentColor').value,
+    accent2: $('#accentColor2').value,
     radiusOn: $('#toggleRadius').checked,
     glowOn: $('#toggleGlow').checked,
     bgMode: $('#bgMode').value,
@@ -391,12 +394,11 @@ function readSettingsFromUI(){
   };
 }
 
-/* apply initial settings */
-let SETTINGS = loadSettings();
+/* initial apply */
 applySettings(SETTINGS);
 populateSettingsUI(SETTINGS);
 
-/* ---------- App functions (upload, list, delete, rename) ---------- */
+/* ---------- Supabase actions ---------- */
 function showLoginError(msg){ $('#loginError').textContent = msg || ''; }
 function showUploadError(msg){ $('#uploadError').textContent = msg || ''; }
 
@@ -404,16 +406,15 @@ async function uploadFile(file){
   if(!file) return showUploadError('No file selected');
   showUploadError('');
   $('#progressContainer').style.display = 'block';
-  $('#uploadProgress').value = 0;
-  $('#progressText').textContent = '0%';
+  $('#uploadProgress').value = 0; $('#progressText').textContent = '0%';
   const path = `${FOLDER}${file.name}`;
-  try {
+  try{
     $('#uploadProgress').value = 20; $('#progressText').textContent = '20%';
     const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
     if(error) throw error;
     $('#uploadProgress').value = 100; $('#progressText').textContent = '100%';
     setTimeout(()=>{ $('#progressContainer').style.display = 'none'; listFiles(); }, 400);
-  } catch(err){
+  }catch(err){
     $('#progressContainer').style.display = 'none';
     showUploadError('Upload failed: ' + (err.message || err));
     console.error(err);
@@ -424,19 +425,15 @@ async function listFiles(){
   const container = $('#fileList');
   container.innerHTML = '';
   $('#pagination').innerHTML = '';
-  try {
-    const { data: files, error } = await supabase.storage.from(BUCKET).list(FOLDER, { limit: 1000 });
+  try{
+    const { data: files, error } = await supabase.storage.from(BUCKET).list(FOLDER, { limit: 2000 });
     if(error) throw error;
-    if(!files || files.length === 0){
-      container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">No files uploaded yet.</div>';
-      return;
-    }
+    if(!files || files.length === 0){ container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">No files uploaded yet.</div>'; return; }
 
-    // sort & paginate
     files.sort((a,b)=>a.name.localeCompare(b.name,{numeric:true,sensitivity:'base'}));
     const totalPages = Math.max(1, Math.ceil(files.length / itemsPerPage));
     if(currentPage > totalPages) currentPage = totalPages;
-    const start = (currentPage - 1) * itemsPerPage;
+    const start = (currentPage-1)*itemsPerPage;
     const pageFiles = files.slice(start, start + itemsPerPage);
 
     for(const f of pageFiles){
@@ -463,7 +460,7 @@ async function listFiles(){
       container.appendChild(card);
     }
 
-    // pagination controls
+    // pagination
     if(totalPages > 1){
       const pg = $('#pagination');
       const prev = document.createElement('button'); prev.className='btn small secondary'; prev.textContent='‹'; prev.disabled = currentPage===1;
@@ -482,7 +479,7 @@ async function listFiles(){
       pg.appendChild(next);
     }
 
-  } catch(err){
+  }catch(err){
     container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">Failed to load files</div>';
     console.error(err);
   }
@@ -490,32 +487,25 @@ async function listFiles(){
 
 async function deleteFile(name){
   if(!confirm(`Delete "${name}"?`)) return;
-  try {
+  try{
     const { error } = await supabase.storage.from(BUCKET).remove([`${FOLDER}${name}`]);
     if(error) throw error;
     listFiles();
-  } catch(err){
-    alert('Delete failed: ' + (err.message || err));
-    console.error(err);
-  }
+  }catch(err){ alert('Delete failed: '+(err.message||err)); console.error(err); }
 }
 
 async function renameFile(oldName){
   const newName = prompt('Enter new name for:', oldName);
   if(!newName || newName === oldName) return;
-  try {
+  try{
     const { error } = await supabase.storage.from(BUCKET).move(`${FOLDER}${oldName}`, `${FOLDER}${newName}`);
     if(error) throw error;
     listFiles();
-  } catch(err){
-    alert('Rename failed: ' + (err.message || err));
-    console.error(err);
-  }
+  }catch(err){ alert('Rename failed: '+(err.message||err)); console.error(err); }
 }
 
-/* ---------- UI wiring ---------- */
+/* UI wiring */
 function setupUI(){
-  // login
   $('#loginBtn').addEventListener('click', ()=> {
     const val = $('#viewId').value.trim();
     if(val === VIEW_ID){ sessionStorage.setItem('loggedIn','true'); $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
@@ -523,7 +513,6 @@ function setupUI(){
   });
   $('#demoBtn').addEventListener('click', ()=> { $('#viewId').value = VIEW_ID; $('#loginBtn').click(); });
 
-  // choose / upload
   $('#chooseBtn').addEventListener('click', ()=> $('#fileInput').click());
   $('#uploadBtn').addEventListener('click', ()=> {
     const f = $('#fileInput').files[0];
@@ -532,14 +521,11 @@ function setupUI(){
   });
   $('#fileInput').addEventListener('change', (e)=> { const f = e.target.files[0]; if(f) uploadFile(f); });
 
-  // refresh
   $('#refreshBtn').addEventListener('click', ()=> listFiles());
 
-  // settings panel
   $('#settingsBtn').addEventListener('click', ()=> $('#settingsPanel').classList.toggle('open'));
   $('#closeSettings').addEventListener('click', ()=> $('#settingsPanel').classList.remove('open'));
 
-  // logout
   $('#logoutBtn').addEventListener('click', ()=> {
     sessionStorage.removeItem('loggedIn'); $('#appPage').style.display='none'; $('#loginPage').style.display='flex'; $('#viewId').value='';
   });
@@ -549,35 +535,32 @@ function setupUI(){
     el.addEventListener('click', ()=>{
       document.querySelectorAll('.theme-option').forEach(x=>x.classList.remove('active'));
       el.classList.add('active');
-      const t = el.dataset.theme;
-      SETTINGS.theme = t;
+      SETTINGS.theme = el.dataset.theme;
+      applySettings(SETTINGS);
     });
   });
 
-  // accent color change
-  $('#accentColor').addEventListener('input', (e)=> { SETTINGS.accent = e.target.value; document.documentElement.style.setProperty('--accent', SETTINGS.accent); });
+  // accent color pickers
+  $('#accentColor').addEventListener('input', (e)=> { SETTINGS.accent = e.target.value; applySettings(SETTINGS); });
+  $('#accentColor2').addEventListener('input', (e)=> { SETTINGS.accent2 = e.target.value; applySettings(SETTINGS); });
 
-  // radius
+  // radius, glow, bg mode, particles, density, font
   $('#toggleRadius').addEventListener('change', (e)=> { SETTINGS.radiusOn = e.target.checked; applySettings(SETTINGS); });
-
-  // glow
   $('#toggleGlow').addEventListener('change', (e)=> { SETTINGS.glowOn = e.target.checked; applySettings(SETTINGS); });
-
-  // background mode
   $('#bgMode').addEventListener('change', (e)=> { SETTINGS.bgMode = e.target.value; applySettings(SETTINGS); });
-
-  // particles toggle & density
   $('#toggleParticles').addEventListener('change', (e)=> { SETTINGS.particlesOn = e.target.checked; applySettings(SETTINGS); });
   $('#particleRange').addEventListener('input', (e)=> { SETTINGS.particleDensity = parseInt(e.target.value,10); if(window.Particles) window.Particles.setDensity(SETTINGS.particleDensity); });
-
-  // font
   $('#fontSelect').addEventListener('change', (e)=> { SETTINGS.font = e.target.value; applySettings(SETTINGS); });
 
-  // save settings
   $('#saveSettings').addEventListener('click', ()=> { saveSettings(SETTINGS); alert('Settings saved'); $('#settingsPanel').classList.remove('open'); });
 
-  // close settings
-  $('#closeSettings').addEventListener('click', ()=> { $('#settingsPanel').classList.remove('open'); } );
+  // close settings when clicking outside
+  document.addEventListener('click', (e)=> {
+    const panel = document.getElementById('settingsPanel');
+    if(panel.classList.contains('open') && !panel.contains(e.target) && !e.target.matches('#settingsBtn')) {
+      panel.classList.remove('open');
+    }
+  });
 
   // delegation for fileList
   $('#fileList').addEventListener('click', (e) => {
@@ -595,113 +578,69 @@ function setupUI(){
   $('#closeImg').addEventListener('click', ()=> $('#imgModal').style.display = 'none');
 }
 
-/* start */
+/* init UI & app */
 setupUI();
 const logged = sessionStorage.getItem('loggedIn') === 'true';
 if(logged){ $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
 else { $('#loginPage').style.display='flex'; $('#appPage').style.display='none'; }
 
-/* populate settings UI from SETTINGS and persisted */
-SETTINGS = Object.assign({}, loadSettings(), SETTINGS || {});
+/* after UI set - ensure settings UI matches stored */
+SETTINGS = {...defaultSettings, ...SETTINGS};
 populateSettingsUI(SETTINGS);
 applySettings(SETTINGS);
 
-/* ---------- Expose small helper to open settings and update theme active class ---------- */
-document.querySelectorAll('.theme-option').forEach(el=>{
-  if(el.dataset.theme === SETTINGS.theme) el.classList.add('active');
-});
+/* ensure active theme option shows */
+document.querySelectorAll('.theme-option').forEach(el=> el.classList.toggle('active', el.dataset.theme === SETTINGS.theme));
 
-/* ---------- Ensure clicking outside settings closes it (optional) ---------- */
-document.addEventListener('click', (e)=> {
-  const panel = document.getElementById('settingsPanel');
-  if(panel.classList.contains('open') && !panel.contains(e.target) && !e.target.matches('#settingsBtn')) {
-    panel.classList.remove('open');
-  }
-});
 </script>
 
+<!-- background controllers -->
 <script>
-/* ---------------- PARTICLES & WAVES background controller ----------------
-   - Exposes window.Particles and window.Waves controllers used above.
-   - Settings call window.Particles.setDensity(n), .start(), .stop()
-*/
-
-(function backgroundControllers(){
+/* Particle & Waves controllers (exposed as window.Particles and window.Waves) */
+(function(){
   const canvas = document.getElementById('bgCanvas');
   const ctx = canvas.getContext('2d', { alpha:true });
   let DPR = Math.max(1, window.devicePixelRatio || 1);
   let W = innerWidth, H = innerHeight;
   let pts = [];
-  let density = parseInt(document.getElementById('particleRange').value || 120,10) || 120;
+  let density = parseInt(document.getElementById('particleRange')?.value || 120,10) || 120;
   let running = true;
   let mouse = { x:-9999, y:-9999, active:false };
 
-  function resize(){
-    W = innerWidth; H = innerHeight;
-    canvas.width = W * DPR; canvas.height = H * DPR;
-    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    createPoints();
-  }
-
+  function resize(){ W = innerWidth; H = innerHeight; canvas.width = W * DPR; canvas.height = H * DPR; canvas.style.width = W + 'px'; canvas.style.height = H + 'px'; ctx.setTransform(DPR,0,0,DPR,0,0); createPoints(); }
   function rand(a,b){ return Math.random()*(b-a)+a; }
-
   function createPoints(){
     pts = [];
-    const base = Math.max(30, Math.min(420, Math.round(density * ( (W*H) / (1366*768) )) ));
-    for(let i=0;i<base;i++){
-      pts.push({ x:rand(0,W), y:rand(0,H), vx:rand(-0.3,0.3), vy:rand(-0.3,0.3), r:rand(0.8,1.8) });
-    }
+    const base = Math.max(30, Math.min(420, Math.round(density * ((W*H)/(1366*768)))));
+    for(let i=0;i<base;i++) pts.push({ x:rand(0,W), y:rand(0,H), vx:rand(-0.35,0.35), vy:rand(-0.35,0.35), r:rand(0.8,1.8) });
   }
 
   function step(){
     if(!running){ requestAnimationFrame(step); return; }
     ctx.clearRect(0,0,W,H);
-    for(const p of pts){
-      p.x += p.vx; p.y += p.vy;
-      if(p.x < -30) p.x = W + 30; if(p.x > W + 30) p.x = -30;
-      if(p.y < -30) p.y = H + 30; if(p.y > H + 30) p.y = -30;
-    }
-
-    // draw lines
+    for(const p of pts){ p.x += p.vx; p.y += p.vy; if(p.x < -30) p.x = W + 30; if(p.x > W + 30) p.x = -30; if(p.y < -30) p.y = H + 30; if(p.y > H + 30) p.y = -30; }
     for(let i=0;i<pts.length;i++){
       for(let j=i+1;j<pts.length;j++){
-        const a = pts[i], b = pts[j];
-        const dx = a.x - b.x, dy = a.y - b.y;
-        const d = Math.sqrt(dx*dx + dy*dy);
+        const a=pts[i], b=pts[j]; const dx=a.x-b.x, dy=a.y-b.y; const d=Math.sqrt(dx*dx+dy*dy);
         if(d < 140){
-          let alpha = 0.26 * (1 - d/140);
+          let alpha = 0.22*(1 - d/140);
           if(mouse.active){
-            const mx = (a.x + b.x)/2 - mouse.x, my = (a.y + b.y)/2 - mouse.y;
-            const md = Math.sqrt(mx*mx + my*my);
-            if(md < 220) alpha += (1 - md/220) * 0.35;
+            const mx=(a.x+b.x)/2 - mouse.x, my=(a.y+b.y)/2 - mouse.y; const md=Math.sqrt(mx*mx+my*my);
+            if(md < 220) alpha += (1 - md/220)*0.35;
           }
           ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
-          ctx.lineWidth = 0.9;
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+          ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
         }
       }
     }
-
-    // dots
     for(const p of pts){
       let size = p.r;
       if(mouse.active){
-        const dx = p.x - mouse.x, dy = p.y - mouse.y;
-        const d = Math.sqrt(dx*dx + dy*dy);
-        if(d < 200){
-          const push = (200 - d)/200;
-          p.x += (dx/d||0) * push * 1.8;
-          p.y += (dy/d||0) * push * 1.8;
-          size = p.r + push*1.6;
-        }
+        const dx=p.x-mouse.x, dy=p.y-mouse.y; const d=Math.sqrt(dx*dx+dy*dy);
+        if(d < 200){ const push=(200-d)/200; p.x += (dx/d||0)*push*1.8; p.y += (dy/d||0)*push*1.8; size = p.r + push*1.6; }
       }
-      ctx.beginPath();
-      ctx.fillStyle = `rgba(255,255,255,${0.85 - size*0.25})`;
-      ctx.arc(p.x, p.y, size, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.fillStyle = `rgba(255,255,255,${0.85 - size*0.25})`; ctx.arc(p.x,p.y,size,0,Math.PI*2); ctx.fill();
     }
-
     requestAnimationFrame(step);
   }
 
@@ -716,47 +655,35 @@ document.addEventListener('click', (e)=> {
     getDensity(){ return density; }
   };
 
-  // waves controller (simple subtle animated gradient wave) - optional
-  let wavesRunning = false;
-  let waveT = 0;
+  // simple waves controller
+  let wavesRunning = false, waveT = 0;
   function wavesStep(){
     if(!wavesRunning){ requestAnimationFrame(wavesStep); return; }
     ctx.clearRect(0,0,W,H);
+    const c = getComputedStyle(document.documentElement).getPropertyValue('--accent')?.trim() || '#ff4c4c';
+    const rgb = hexToRgb(c) || {r:255,g:76,b:76};
     const g = ctx.createLinearGradient(0,0,W,H);
-    const c1 = hexToRgb(document.documentElement.style.getPropertyValue('--accent') || '#ff4c4c');
-    g.addColorStop(0, `rgba(${c1.r},${c1.g},${c1.b},0.06)`);
+    g.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.06)`);
     g.addColorStop(1, `rgba(255,255,255,0.01)`);
     ctx.fillStyle = g;
-    const amplitude = Math.min(60, Math.max(12, (W+H)/200));
-    for(let i=0;i<3;i++){
-      ctx.globalAlpha = 0.06 + i*0.02;
-      ctx.beginPath();
-      const offset = Math.sin((waveT*0.002) + i) * amplitude;
-      ctx.moveTo(0, H/2 + offset);
-      for(let x=0;x<=W;x+=20){
-        ctx.lineTo(x, H/2 + Math.sin((x*0.02)+(waveT*0.002)+i) * amplitude + offset);
-      }
-      ctx.lineTo(W, H); ctx.lineTo(0,H); ctx.closePath();
-      ctx.fill();
+    const amplitude = Math.min(80, Math.max(12, (W+H)/220));
+    ctx.beginPath();
+    for(let x=0;x<=W;x+=20){
+      const y = H/2 + Math.sin((x*0.02) + waveT*0.01) * amplitude;
+      if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
     }
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
     waveT += 1;
     requestAnimationFrame(wavesStep);
   }
+  function hexToRgb(hex){ hex=hex.replace('#',''); if(hex.length===3) hex=hex.split('').map(c=>c+c).join(''); const n=parseInt(hex,16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
 
   window.Waves = {
     start(){ wavesRunning = true; waveT = 0; },
     stop(){ wavesRunning = false; ctx.clearRect(0,0,W,H); }
   };
 
-  function hexToRgb(hex){
-    hex = hex.replace('#','');
-    if(hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
-    const n = parseInt(hex,16);
-    return { r: (n>>16)&255, g:(n>>8)&255, b:n&255 };
-  }
-
-  resize();
-  step();
+  resize(); step();
 })();
 </script>
 </body>
