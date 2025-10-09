@@ -1,245 +1,763 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>File Storage App</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body {
-      background-color: black;
-      color: white;
-      overflow-x: hidden;
-    }
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>My Storage — Customizable</title>
 
-    /* Particle Background */
-    #particles {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-      background: black;
-    }
+<style>
+  :root{
+    /* layout */
+    --max-width: 1200px;
+    --card-w: 220px;          /* card width */
+    --card-h: 220px;          /* card height (fixed square area) */
+    --panel-radius: 14px;
+    --glass-blur: 10px;
 
-    .card {
-      background-color: #111;
-      border: 2px solid #222;
-      border-radius: 1rem;
-      width: 220px;
-      transition: all 0.3s ease;
-    }
+    /* default theme colors (black theme) */
+    --bg: #000;
+    --panel-bg: rgba(255,255,255,0.03);
+    --panel-strong: rgba(255,255,255,0.04);
+    --accent: #ff4c4c;
+    --muted: #bdbdbd;
+    --text: #ffffff;
+    --card-bg: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+    --glow: rgba(255,255,255,0.10);
+    --radius: 12px;
+    --font-family: Inter, "Segoe UI", system-ui, -apple-system, Arial;
+  }
 
-    .card:hover {
-      box-shadow: 0 0 15px white;
-      transform: translateY(-5px);
-    }
+  /* Theme helper classes will be applied (body.classList) */
+  body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--font-family);overflow:hidden}
 
-    .card img {
-      width: 100%;
-      height: 140px;
-      object-fit: cover;
-      border-top-left-radius: 1rem;
-      border-top-right-radius: 1rem;
-    }
+  /* background canvas layer */
+  #bgCanvas{position:fixed;inset:0;z-index:0;display:block;background:var(--bg)}
 
-    .card-buttons {
-      display: flex;
-      justify-content: space-around;
-      padding: 10px;
-    }
+  /* app root */
+  .app-root{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+  .container{width:100%;max-width:var(--max-width);display:flex;flex-direction:column;gap:12px}
 
-    .card button {
-      background: transparent;
-      border: 1px solid white;
-      color: white;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      transition: 0.2s;
-    }
+  /* Login overlay */
+  #loginPage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:8;background:linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6))}
+  .login-box{width:360px;background:linear-gradient(180deg,var(--panel-bg),var(--panel-strong));padding:30px;border-radius:var(--panel-radius);backdrop-filter:blur(var(--glass-blur));border:1px solid rgba(255,255,255,0.03);text-align:center}
+  .login-box h2{margin:0 0 10px;color:var(--accent)}
+  .input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);outline:none;margin-bottom:10px}
+  .login-actions{display:flex;gap:8px;justify-content:center}
+  .btn{cursor:pointer;border:none;padding:10px 14px;border-radius:10px;font-weight:700}
+  .btn.primary{background:linear-gradient(90deg,var(--accent),#ff6b6b);color:#120707}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text)}
+  .login-error{color:#ff9b9b;margin-top:8px;min-height:18px}
 
-    .card button:hover {
-      background: white;
-      color: black;
-    }
+  /* header */
+  .header{display:flex;justify-content:space-between;align-items:center;padding:8px 4px}
+  .title{font-size:20px;font-weight:800;color:var(--accent)}
+  .controls{display:flex;gap:8px;align-items:center}
 
-    .settings-tab {
-      position: fixed;
-      top: 0;
-      right: -300px;
-      width: 300px;
-      height: 100%;
-      background: #111;
-      transition: right 0.3s ease;
-      padding: 20px;
-      border-left: 2px solid #333;
-      overflow-y: auto;
-    }
+  .control-btn{background:linear-gradient(90deg,var(--accent),#ff6b6b);color:#120707;padding:10px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:700}
+  .control-btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)}
+  .control-btn.white{background:var(--text);color:#120707}
 
-    .settings-tab.active {
-      right: 0;
-    }
+  /* main grid panel */
+  .grid-wrap{background:linear-gradient(180deg,var(--panel-bg),var(--panel-strong));padding:12px;border-radius:var(--panel-radius);border:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(var(--glass-blur));height:calc(100vh - 160px);display:flex;flex-direction:column;gap:12px;overflow:hidden}
 
-    .theme-option {
-      margin-bottom: 10px;
-      padding: 8px;
-      background: #222;
-      border-radius: 8px;
-      cursor: pointer;
-      text-align: center;
-    }
+  /* file list: vertical scroll only (no horizontal) */
+  #fileList {
+    flex:1;
+    display:grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-auto-rows: var(--card-h);
+    gap:12px;
+    padding:8px;
+    overflow-y:auto;
+    overflow-x:hidden;
+  }
+  #fileList::-webkit-scrollbar{width:10px}
+  #fileList::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);border-radius:8px}
 
-    .theme-option:hover {
-      background: white;
-      color: black;
-    }
+  /* file card exact sizing */
+  .file-card{
+    width:100%;
+    height:100%;
+    background:var(--card-bg);
+    border-radius:var(--radius);
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:flex-start;
+    gap:8px;
+    transition: transform .12s, box-shadow .12s;
+    border:1px solid rgba(255,255,255,0.02);
+    box-sizing:border-box;
+    min-width:0;
+  }
 
-    #theme-btn {
-      background: #222;
-      border: 1px solid white;
-      padding: 6px 12px;
-      border-radius: 8px;
-      transition: 0.3s;
-    }
+  /* glow on hover (toggleable) */
+  body.no-glow .file-card:hover{box-shadow:none;transform:none}
+  body:not(.no-glow) .file-card:hover{transform:translateY(-6px);box-shadow:0 14px 40px var(--glow)}
 
-    #theme-btn:hover {
-      background: white;
-      color: black;
-    }
-  </style>
+  /* preview area: fixed box inside card */
+  .preview-wrap{
+    width:100%;
+    height: calc(var(--card-h) - 96px); /* leave space for filename + buttons under */
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: #060606;
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .preview-wrap img{
+    width:100%;
+    height:100%;
+    object-fit:contain; /* ensure the whole image fits inside without stretching */
+    display:block;
+  }
+
+  .file-name{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+
+  /* buttons horizontally under the image, centered */
+  .file-actions{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:center;
+    padding:0 4px;
+    width:100%;
+  }
+  .file-actions button, .file-actions a{
+    flex:0 0 30%;
+    padding:8px 6px;
+    border-radius:8px;
+    border:none;
+    background:var(--text);
+    color:#111;
+    font-weight:700;
+    cursor:pointer;
+    text-decoration:none;
+    text-align:center;
+  }
+  .file-actions button.del{background:#9b1f1f;color:#fff}
+  .file-actions a.download{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:8px 6px}
+
+  /* filename + actions container to ensure consistent layout */
+  .meta { display:flex; flex-direction:column; gap:6px; justify-content:flex-end; }
+
+  /* pagination */
+  #pagination{display:flex;gap:8px;justify-content:center;padding:10px}
+
+  /* progress modal */
+  #progressContainer{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel-strong);padding:12px;border-radius:10px;display:none;z-index:9;border:1px solid rgba(255,255,255,0.03)}
+
+  /* image modal */
+  #imgModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:9}
+  #imgModal img{max-width:92%;max-height:92%;border-radius:12px}
+  #imgModal button{position:absolute;top:18px;right:20px;padding:8px 12px;border-radius:8px;border:none;background:var(--text);color:#120707;font-weight:700;cursor:pointer}
+
+  /* settings panel slide-in */
+  .settings-panel{position:fixed;right:-420px;top:0;height:100%;width:400px;background:linear-gradient(180deg,var(--panel-bg),var(--panel-strong));backdrop-filter:blur(var(--glass-blur));padding:18px;border-left:1px solid rgba(255,255,255,0.03);z-index:10;transition:right .28s;overflow:auto}
+  .settings-panel.open{right:0}
+  .theme-option{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.02);margin-bottom:10px}
+  .theme-swatch{width:36px;height:24px;border-radius:6px;border:1px solid rgba(255,255,255,0.06)}
+
+  /* responsive */
+  @media (max-width:1200px){ #fileList{grid-template-columns:repeat(4,1fr)} }
+  @media (max-width:920px){ #fileList{grid-template-columns:repeat(3,1fr)} .settings-panel{width:320px} }
+  @media (max-width:640px){ #fileList{grid-template-columns:repeat(2,1fr)} .login-box{width:320px} }
+</style>
 </head>
 <body>
-  <canvas id="particles"></canvas>
 
-  <div class="flex justify-between items-center p-4">
-    <h1 class="text-xl font-bold">📁 File Storage</h1>
-    <div>
-      <button id="refresh-btn" class="mx-2 px-3 py-1 border rounded">🔄 Refresh</button>
-      <button id="theme-btn">⚙️ Settings</button>
-      <button id="logout-btn" class="mx-2 px-3 py-1 border rounded">🚪 Logout</button>
+<canvas id="bgCanvas"></canvas>
+
+<div class="app-root">
+  <div class="container">
+
+    <!-- LOGIN -->
+    <div id="loginPage">
+      <div class="login-box">
+        <h2>Enter View ID</h2>
+        <input id="viewId" class="input" type="password" placeholder="••••" />
+        <div class="login-actions" style="margin-top:8px">
+          <button id="loginBtn" class="btn primary">Log In</button>
+          <button id="demoBtn" class="btn ghost">Use 12321</button>
+        </div>
+        <div id="loginError" class="login-error"></div>
+      </div>
+    </div>
+
+    <!-- APP -->
+    <div id="appPage" style="display:none">
+      <div class="header">
+        <div class="title">My Storage</div>
+        <div class="controls">
+          <input id="fileInput" type="file" style="display:none" />
+          <button id="chooseBtn" class="control-btn">Choose</button>
+          <button id="uploadBtn" class="control-btn">Upload</button>
+          <button id="refreshBtn" class="control-btn secondary">Refresh</button>
+          <button id="settingsBtn" class="control-btn secondary">Settings</button>
+          <button id="logoutBtn" class="control-btn secondary">Logout</button>
+        </div>
+      </div>
+
+      <div class="grid-wrap">
+        <div id="fileList" aria-live="polite"></div>
+        <div id="pagination"></div>
+      </div>
     </div>
   </div>
+</div>
 
-  <div id="file-container" class="grid grid-cols-5 gap-4 p-6 overflow-y-auto"></div>
+<!-- progress -->
+<div id="progressContainer">
+  <progress id="uploadProgress" max="100" value="0" style="width:320px"></progress>
+  <div id="progressText" style="color:var(--muted);text-align:center;margin-top:8px">0%</div>
+  <div id="uploadError" style="color:#ff8b8b;margin-top:8px"></div>
+</div>
 
-  <div id="settings-tab" class="settings-tab">
-    <h2 class="text-lg font-semibold mb-4">Theme Settings</h2>
-    <div class="theme-option" onclick="changeTheme('black')">Dark Mode (Black & White)</div>
-    <div class="theme-option" onclick="changeTheme('red')">Red Theme</div>
-    <div class="theme-option" onclick="changeTheme('blue')">Blue Theme</div>
-    <div class="theme-option" onclick="changeTheme('green')">Green Theme</div>
-  </div>
+<!-- image modal -->
+<div id="imgModal"><button id="closeImg">Close</button><img id="modalImg" src=""></div>
 
-  <script>
-    // Sample cards
-    const files = [
-      { name: "Car1", image: "https://picsum.photos/300?random=1" },
-      { name: "Car2", image: "https://picsum.photos/300?random=2" },
-      { name: "Car3", image: "https://picsum.photos/300?random=3" },
-      { name: "Car4", image: "https://picsum.photos/300?random=4" },
-      { name: "Car5", image: "https://picsum.photos/300?random=5" },
-    ];
+<!-- settings -->
+<div id="settingsPanel" class="settings-panel">
+  <h3 style="margin:0 0 10px;color:var(--muted)">Settings & Customization</h3>
 
-    const fileContainer = document.getElementById("file-container");
-    const settingsTab = document.getElementById("settings-tab");
+  <div style="margin-bottom:8px">Theme</div>
+  <div class="theme-option" data-theme="black"><div class="theme-swatch" style="background:black"></div><div>Black (default)</div></div>
+  <div class="theme-option" data-theme="white"><div class="theme-swatch" style="background:#f6f6f6;border:1px solid #ddd"></div><div>White</div></div>
+  <div class="theme-option" data-theme="red"><div class="theme-swatch" style="background:linear-gradient(90deg,#ff4c4c,#ff6b6b)"></div><div>Red</div></div>
+  <div class="theme-option" data-theme="blue"><div class="theme-swatch" style="background:linear-gradient(90deg,#4c8cff,#6ba8ff)"></div><div>Blue</div></div>
+  <div class="theme-option" data-theme="green"><div class="theme-swatch" style="background:linear-gradient(90deg,#4cff88,#77ffb3)"></div><div>Green</div></div>
+  <div class="theme-option" data-theme="purple"><div class="theme-swatch" style="background:linear-gradient(90deg,#b84cff,#cf6bff)"></div><div>Purple</div></div>
+  <div class="theme-option" data-theme="mono"><div class="theme-swatch" style="background:linear-gradient(90deg,#999,#666)"></div><div>Monochrome</div></div>
 
-    function renderFiles() {
-      fileContainer.innerHTML = "";
-      files.forEach((file, index) => {
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          <img src="${file.image}" alt="${file.name}">
-          <div class="card-buttons">
-            <button onclick="viewFile(${index})">View</button>
-            <button onclick="renameFile(${index})">Rename</button>
-            <button onclick="deleteFile(${index})">Delete</button>
+  <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
+
+  <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span>Accent color</span>
+    <input id="accentColor" type="color" value="#ff4c4c">
+  </label>
+
+  <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span>Rounded corners</span>
+    <input id="toggleRadius" type="checkbox" checked>
+  </label>
+
+  <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span>Glow effect</span>
+    <input id="toggleGlow" type="checkbox" checked>
+  </label>
+
+  <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span>Background animation</span>
+    <select id="bgMode">
+      <option value="particles">Particles</option>
+      <option value="waves">Waves</option>
+      <option value="off">Off</option>
+    </select>
+  </label>
+
+  <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span>Particles on</span>
+    <input id="toggleParticles" type="checkbox" checked>
+  </label>
+
+  <div style="margin-top:8px">Particle density</div>
+  <input id="particleRange" type="range" min="20" max="300" value="120" style="width:100%;margin-top:8px">
+
+  <div style="margin-top:12px">Font</div>
+  <select id="fontSelect" style="width:100%;margin-top:8px;">
+    <option value="Inter, system-ui, -apple-system, 'Segoe UI', Arial">Inter (default)</option>
+    <option value="'Segoe UI', system-ui, -apple-system, Arial">Segoe UI</option>
+    <option value="Arial, Helvetica, sans-serif">Arial</option>
+    <option value="'Courier New', monospace">Monospace</option>
+  </select>
+
+  <div style="height:14px"></div>
+  <button id="saveSettings" class="btn primary" style="width:100%">Save Settings</button>
+  <div style="height:8px"></div>
+  <button id="closeSettings" class="btn ghost" style="width:100%">Close</button>
+</div>
+
+<!-- Supabase + App logic -->
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+const SUPABASE_URL = 'https://dnuvhvcnwmbjttmitcwr.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.supabase = supabase;
+
+const BUCKET = 'my-storage';
+const FOLDER = 'uploads/';
+const VIEW_ID = '12321';
+const $ = s => document.querySelector(s);
+
+let currentPage = 1;
+const itemsPerPage = 25; // 5x5
+
+/* Settings persistence */
+const SETTINGS_KEY = 'my_storage_settings_v1';
+const defaultSettings = {
+  theme: 'black',
+  accent: '#ff4c4c',
+  radiusOn: true,
+  glowOn: true,
+  bgMode: 'particles',
+  particlesOn: true,
+  particleDensity: 120,
+  font: "Inter, system-ui, -apple-system, 'Segoe UI', Arial"
+};
+
+function loadSettings(){
+  try{
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if(!raw) return {...defaultSettings};
+    return {...defaultSettings, ...JSON.parse(raw)};
+  }catch(e){ return {...defaultSettings}; }
+}
+function saveSettings(s){
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+/* apply settings to DOM */
+function applySettings(s){
+  // theme classes
+  document.body.classList.remove('theme-black','theme-white','theme-red','theme-blue','theme-green','theme-purple','theme-mono');
+  if(s.theme === 'white') document.body.classList.add('theme-white');
+  else if(s.theme === 'red') document.body.classList.add('theme-red');
+  else if(s.theme === 'blue') document.body.classList.add('theme-blue');
+  else if(s.theme === 'green') document.body.classList.add('theme-green');
+  else if(s.theme === 'purple') document.body.classList.add('theme-purple');
+  else if(s.theme === 'mono') document.body.classList.add('theme-mono');
+  else document.body.classList.add('theme-black');
+
+  // accent
+  document.documentElement.style.setProperty('--accent', s.accent);
+
+  // radius
+  if(s.radiusOn) document.documentElement.style.setProperty('--radius', '12px');
+  else document.documentElement.style.setProperty('--radius', '2px');
+
+  // glow
+  if(s.glowOn) document.body.classList.remove('no-glow');
+  else document.body.classList.add('no-glow');
+
+  // font
+  document.documentElement.style.setProperty('--font-family', s.font);
+  document.body.style.fontFamily = s.font;
+
+  // background animation mode
+  if(s.bgMode === 'particles'){
+    window.Particles && window.Particles.start();
+    window.Waves && window.Waves.stop && window.Waves.stop();
+  } else if(s.bgMode === 'waves'){
+    window.Particles && window.Particles.stop && window.Particles.stop();
+    window.Waves && window.Waves.start && window.Waves.start();
+  } else {
+    window.Particles && window.Particles.stop && window.Particles.stop();
+    window.Waves && window.Waves.stop && window.Waves.stop && window.Waves.stop();
+  }
+
+  // particle toggles and density
+  if(window.Particles){
+    if(s.particlesOn) window.Particles.start(); else window.Particles.stop();
+    window.Particles.setDensity(s.particleDensity);
+  }
+}
+
+/* init settings UI values from stored */
+function populateSettingsUI(s){
+  $('#accentColor').value = s.accent;
+  $('#toggleRadius').checked = s.radiusOn;
+  $('#toggleGlow').checked = s.glowOn;
+  $('#bgMode').value = s.bgMode;
+  $('#toggleParticles').checked = s.particlesOn;
+  $('#particleRange').value = s.particleDensity;
+  $('#fontSelect').value = s.font;
+}
+
+/* save settings from UI */
+function readSettingsFromUI(){
+  return {
+    theme: document.querySelectorAll('.theme-option.active').length ? document.querySelector('.theme-option.active').dataset.theme : loadSettings().theme,
+    accent: $('#accentColor').value,
+    radiusOn: $('#toggleRadius').checked,
+    glowOn: $('#toggleGlow').checked,
+    bgMode: $('#bgMode').value,
+    particlesOn: $('#toggleParticles').checked,
+    particleDensity: parseInt($('#particleRange').value,10),
+    font: $('#fontSelect').value
+  };
+}
+
+/* apply initial settings */
+let SETTINGS = loadSettings();
+applySettings(SETTINGS);
+populateSettingsUI(SETTINGS);
+
+/* ---------- App functions (upload, list, delete, rename) ---------- */
+function showLoginError(msg){ $('#loginError').textContent = msg || ''; }
+function showUploadError(msg){ $('#uploadError').textContent = msg || ''; }
+
+async function uploadFile(file){
+  if(!file) return showUploadError('No file selected');
+  showUploadError('');
+  $('#progressContainer').style.display = 'block';
+  $('#uploadProgress').value = 0;
+  $('#progressText').textContent = '0%';
+  const path = `${FOLDER}${file.name}`;
+  try {
+    $('#uploadProgress').value = 20; $('#progressText').textContent = '20%';
+    const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+    if(error) throw error;
+    $('#uploadProgress').value = 100; $('#progressText').textContent = '100%';
+    setTimeout(()=>{ $('#progressContainer').style.display = 'none'; listFiles(); }, 400);
+  } catch(err){
+    $('#progressContainer').style.display = 'none';
+    showUploadError('Upload failed: ' + (err.message || err));
+    console.error(err);
+  }
+}
+
+async function listFiles(){
+  const container = $('#fileList');
+  container.innerHTML = '';
+  $('#pagination').innerHTML = '';
+  try {
+    const { data: files, error } = await supabase.storage.from(BUCKET).list(FOLDER, { limit: 1000 });
+    if(error) throw error;
+    if(!files || files.length === 0){
+      container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">No files uploaded yet.</div>';
+      return;
+    }
+
+    // sort & paginate
+    files.sort((a,b)=>a.name.localeCompare(b.name,{numeric:true,sensitivity:'base'}));
+    const totalPages = Math.max(1, Math.ceil(files.length / itemsPerPage));
+    if(currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * itemsPerPage;
+    const pageFiles = files.slice(start, start + itemsPerPage);
+
+    for(const f of pageFiles){
+      const filePath = `${FOLDER}${f.name}`;
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+      const url = data.publicUrl;
+      const isImage = /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(f.name);
+
+      const card = document.createElement('div');
+      card.className = 'file-card';
+      card.innerHTML = `
+        <div class="preview-wrap">
+          ${ isImage ? `<img src="${url}" alt="${f.name}" class="preview">` : `<div style="font-size:36px;color:var(--muted)">📄</div>` }
+        </div>
+        <div class="meta">
+          <div class="file-name" title="${f.name}">${f.name}</div>
+          <div class="file-actions">
+            <button class="del" data-name="${f.name}">Delete</button>
+            <button class="rename" data-name="${f.name}">Rename</button>
+            <a class="download" href="${url}" target="_blank" rel="noopener">Download</a>
           </div>
-        `;
-        fileContainer.appendChild(card);
-      });
+        </div>
+      `;
+      container.appendChild(card);
     }
 
-    function viewFile(index) {
-      const file = files[index];
-      const overlay = document.createElement("div");
-      overlay.style.position = "fixed";
-      overlay.style.top = "0";
-      overlay.style.left = "0";
-      overlay.style.width = "100%";
-      overlay.style.height = "100%";
-      overlay.style.background = "rgba(0, 0, 0, 0.9)";
-      overlay.style.display = "flex";
-      overlay.style.alignItems = "center";
-      overlay.style.justifyContent = "center";
-      overlay.style.zIndex = "1000";
-      overlay.innerHTML = `<img src="${file.image}" class="rounded-xl max-h-[80%] max-w-[90%]">`;
-      overlay.onclick = () => overlay.remove();
-      document.body.appendChild(overlay);
+    // pagination controls
+    if(totalPages > 1){
+      const pg = $('#pagination');
+      const prev = document.createElement('button'); prev.className='btn small secondary'; prev.textContent='‹'; prev.disabled = currentPage===1;
+      prev.addEventListener('click', ()=>{ currentPage = Math.max(1, currentPage-1); listFiles();});
+      pg.appendChild(prev);
+
+      for(let i=1;i<=totalPages;i++){
+        const b = document.createElement('button'); b.className='btn small'; b.textContent = i;
+        if(i===currentPage){ b.classList.add('active'); b.disabled = true; }
+        b.addEventListener('click', ()=>{ currentPage = i; listFiles(); });
+        pg.appendChild(b);
+      }
+
+      const next = document.createElement('button'); next.className='btn small secondary'; next.textContent='›'; next.disabled = currentPage===totalPages;
+      next.addEventListener('click', ()=>{ currentPage = Math.min(totalPages, currentPage+1); listFiles();});
+      pg.appendChild(next);
     }
 
-    function renameFile(index) {
-      const newName = prompt("Enter new name:", files[index].name);
-      if (newName) {
-        files[index].name = newName;
-        renderFiles();
+  } catch(err){
+    container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">Failed to load files</div>';
+    console.error(err);
+  }
+}
+
+async function deleteFile(name){
+  if(!confirm(`Delete "${name}"?`)) return;
+  try {
+    const { error } = await supabase.storage.from(BUCKET).remove([`${FOLDER}${name}`]);
+    if(error) throw error;
+    listFiles();
+  } catch(err){
+    alert('Delete failed: ' + (err.message || err));
+    console.error(err);
+  }
+}
+
+async function renameFile(oldName){
+  const newName = prompt('Enter new name for:', oldName);
+  if(!newName || newName === oldName) return;
+  try {
+    const { error } = await supabase.storage.from(BUCKET).move(`${FOLDER}${oldName}`, `${FOLDER}${newName}`);
+    if(error) throw error;
+    listFiles();
+  } catch(err){
+    alert('Rename failed: ' + (err.message || err));
+    console.error(err);
+  }
+}
+
+/* ---------- UI wiring ---------- */
+function setupUI(){
+  // login
+  $('#loginBtn').addEventListener('click', ()=> {
+    const val = $('#viewId').value.trim();
+    if(val === VIEW_ID){ sessionStorage.setItem('loggedIn','true'); $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
+    else showLoginError('Incorrect ID');
+  });
+  $('#demoBtn').addEventListener('click', ()=> { $('#viewId').value = VIEW_ID; $('#loginBtn').click(); });
+
+  // choose / upload
+  $('#chooseBtn').addEventListener('click', ()=> $('#fileInput').click());
+  $('#uploadBtn').addEventListener('click', ()=> {
+    const f = $('#fileInput').files[0];
+    if(f) uploadFile(f);
+    else $('#fileInput').click();
+  });
+  $('#fileInput').addEventListener('change', (e)=> { const f = e.target.files[0]; if(f) uploadFile(f); });
+
+  // refresh
+  $('#refreshBtn').addEventListener('click', ()=> listFiles());
+
+  // settings panel
+  $('#settingsBtn').addEventListener('click', ()=> $('#settingsPanel').classList.toggle('open'));
+  $('#closeSettings').addEventListener('click', ()=> $('#settingsPanel').classList.remove('open'));
+
+  // logout
+  $('#logoutBtn').addEventListener('click', ()=> {
+    sessionStorage.removeItem('loggedIn'); $('#appPage').style.display='none'; $('#loginPage').style.display='flex'; $('#viewId').value='';
+  });
+
+  // theme option click
+  document.querySelectorAll('.theme-option').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      document.querySelectorAll('.theme-option').forEach(x=>x.classList.remove('active'));
+      el.classList.add('active');
+      const t = el.dataset.theme;
+      SETTINGS.theme = t;
+    });
+  });
+
+  // accent color change
+  $('#accentColor').addEventListener('input', (e)=> { SETTINGS.accent = e.target.value; document.documentElement.style.setProperty('--accent', SETTINGS.accent); });
+
+  // radius
+  $('#toggleRadius').addEventListener('change', (e)=> { SETTINGS.radiusOn = e.target.checked; applySettings(SETTINGS); });
+
+  // glow
+  $('#toggleGlow').addEventListener('change', (e)=> { SETTINGS.glowOn = e.target.checked; applySettings(SETTINGS); });
+
+  // background mode
+  $('#bgMode').addEventListener('change', (e)=> { SETTINGS.bgMode = e.target.value; applySettings(SETTINGS); });
+
+  // particles toggle & density
+  $('#toggleParticles').addEventListener('change', (e)=> { SETTINGS.particlesOn = e.target.checked; applySettings(SETTINGS); });
+  $('#particleRange').addEventListener('input', (e)=> { SETTINGS.particleDensity = parseInt(e.target.value,10); if(window.Particles) window.Particles.setDensity(SETTINGS.particleDensity); });
+
+  // font
+  $('#fontSelect').addEventListener('change', (e)=> { SETTINGS.font = e.target.value; applySettings(SETTINGS); });
+
+  // save settings
+  $('#saveSettings').addEventListener('click', ()=> { saveSettings(SETTINGS); alert('Settings saved'); $('#settingsPanel').classList.remove('open'); });
+
+  // close settings
+  $('#closeSettings').addEventListener('click', ()=> { $('#settingsPanel').classList.remove('open'); } );
+
+  // delegation for fileList
+  $('#fileList').addEventListener('click', (e) => {
+    const del = e.target.closest('button.del');
+    if(del){ e.stopPropagation(); deleteFile(del.dataset.name); return; }
+    const ren = e.target.closest('button.rename');
+    if(ren){ e.stopPropagation(); renameFile(ren.dataset.name); return; }
+    const img = e.target.closest('img.preview');
+    if(img){
+      $('#modalImg').src = img.src;
+      $('#imgModal').style.display = 'flex';
+    }
+  });
+
+  $('#closeImg').addEventListener('click', ()=> $('#imgModal').style.display = 'none');
+}
+
+/* start */
+setupUI();
+const logged = sessionStorage.getItem('loggedIn') === 'true';
+if(logged){ $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
+else { $('#loginPage').style.display='flex'; $('#appPage').style.display='none'; }
+
+/* populate settings UI from SETTINGS and persisted */
+SETTINGS = Object.assign({}, loadSettings(), SETTINGS || {});
+populateSettingsUI(SETTINGS);
+applySettings(SETTINGS);
+
+/* ---------- Expose small helper to open settings and update theme active class ---------- */
+document.querySelectorAll('.theme-option').forEach(el=>{
+  if(el.dataset.theme === SETTINGS.theme) el.classList.add('active');
+});
+
+/* ---------- Ensure clicking outside settings closes it (optional) ---------- */
+document.addEventListener('click', (e)=> {
+  const panel = document.getElementById('settingsPanel');
+  if(panel.classList.contains('open') && !panel.contains(e.target) && !e.target.matches('#settingsBtn')) {
+    panel.classList.remove('open');
+  }
+});
+</script>
+
+<script>
+/* ---------------- PARTICLES & WAVES background controller ----------------
+   - Exposes window.Particles and window.Waves controllers used above.
+   - Settings call window.Particles.setDensity(n), .start(), .stop()
+*/
+
+(function backgroundControllers(){
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d', { alpha:true });
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+  let W = innerWidth, H = innerHeight;
+  let pts = [];
+  let density = parseInt(document.getElementById('particleRange').value || 120,10) || 120;
+  let running = true;
+  let mouse = { x:-9999, y:-9999, active:false };
+
+  function resize(){
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    createPoints();
+  }
+
+  function rand(a,b){ return Math.random()*(b-a)+a; }
+
+  function createPoints(){
+    pts = [];
+    const base = Math.max(30, Math.min(420, Math.round(density * ( (W*H) / (1366*768) )) ));
+    for(let i=0;i<base;i++){
+      pts.push({ x:rand(0,W), y:rand(0,H), vx:rand(-0.3,0.3), vy:rand(-0.3,0.3), r:rand(0.8,1.8) });
+    }
+  }
+
+  function step(){
+    if(!running){ requestAnimationFrame(step); return; }
+    ctx.clearRect(0,0,W,H);
+    for(const p of pts){
+      p.x += p.vx; p.y += p.vy;
+      if(p.x < -30) p.x = W + 30; if(p.x > W + 30) p.x = -30;
+      if(p.y < -30) p.y = H + 30; if(p.y > H + 30) p.y = -30;
+    }
+
+    // draw lines
+    for(let i=0;i<pts.length;i++){
+      for(let j=i+1;j<pts.length;j++){
+        const a = pts[i], b = pts[j];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if(d < 140){
+          let alpha = 0.26 * (1 - d/140);
+          if(mouse.active){
+            const mx = (a.x + b.x)/2 - mouse.x, my = (a.y + b.y)/2 - mouse.y;
+            const md = Math.sqrt(mx*mx + my*my);
+            if(md < 220) alpha += (1 - md/220) * 0.35;
+          }
+          ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
+          ctx.lineWidth = 0.9;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
       }
     }
 
-    function deleteFile(index) {
-      if (confirm("Delete this file?")) {
-        files.splice(index, 1);
-        renderFiles();
+    // dots
+    for(const p of pts){
+      let size = p.r;
+      if(mouse.active){
+        const dx = p.x - mouse.x, dy = p.y - mouse.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if(d < 200){
+          const push = (200 - d)/200;
+          p.x += (dx/d||0) * push * 1.8;
+          p.y += (dy/d||0) * push * 1.8;
+          size = p.r + push*1.6;
+        }
       }
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255,255,255,${0.85 - size*0.25})`;
+      ctx.arc(p.x, p.y, size, 0, Math.PI*2); ctx.fill();
     }
 
-    document.getElementById("refresh-btn").onclick = renderFiles;
-    document.getElementById("logout-btn").onclick = () => alert("Logged out!");
-    document.getElementById("theme-btn").onclick = () => settingsTab.classList.toggle("active");
+    requestAnimationFrame(step);
+  }
 
-    function changeTheme(theme) {
-      if (theme === "black") document.body.style.backgroundColor = "black";
-      if (theme === "red") document.body.style.backgroundColor = "#300";
-      if (theme === "blue") document.body.style.backgroundColor = "#001133";
-      if (theme === "green") document.body.style.backgroundColor = "#002200";
-      settingsTab.classList.remove("active");
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', (e)=>{ mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; });
+  window.addEventListener('mouseout', ()=>{ mouse.active = false; mouse.x = -9999; mouse.y = -9999; });
+
+  window.Particles = {
+    start(){ running = true; },
+    stop(){ running = false; ctx.clearRect(0,0,W,H); },
+    setDensity(n){ density = n; createPoints(); },
+    getDensity(){ return density; }
+  };
+
+  // waves controller (simple subtle animated gradient wave) - optional
+  let wavesRunning = false;
+  let waveT = 0;
+  function wavesStep(){
+    if(!wavesRunning){ requestAnimationFrame(wavesStep); return; }
+    ctx.clearRect(0,0,W,H);
+    const g = ctx.createLinearGradient(0,0,W,H);
+    const c1 = hexToRgb(document.documentElement.style.getPropertyValue('--accent') || '#ff4c4c');
+    g.addColorStop(0, `rgba(${c1.r},${c1.g},${c1.b},0.06)`);
+    g.addColorStop(1, `rgba(255,255,255,0.01)`);
+    ctx.fillStyle = g;
+    const amplitude = Math.min(60, Math.max(12, (W+H)/200));
+    for(let i=0;i<3;i++){
+      ctx.globalAlpha = 0.06 + i*0.02;
+      ctx.beginPath();
+      const offset = Math.sin((waveT*0.002) + i) * amplitude;
+      ctx.moveTo(0, H/2 + offset);
+      for(let x=0;x<=W;x+=20){
+        ctx.lineTo(x, H/2 + Math.sin((x*0.02)+(waveT*0.002)+i) * amplitude + offset);
+      }
+      ctx.lineTo(W, H); ctx.lineTo(0,H); ctx.closePath();
+      ctx.fill();
     }
+    waveT += 1;
+    requestAnimationFrame(wavesStep);
+  }
 
-    // Particle effect
-    const canvas = document.getElementById("particles");
-    const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+  window.Waves = {
+    start(){ wavesRunning = true; waveT = 0; },
+    stop(){ wavesRunning = false; ctx.clearRect(0,0,W,H); }
+  };
 
-    const particles = [];
-    for (let i = 0; i < 100; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        dx: (Math.random() - 0.5) * 1.5,
-        dy: (Math.random() - 0.5) * 1.5,
-      });
-    }
+  function hexToRgb(hex){
+    hex = hex.replace('#','');
+    if(hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+    const n = parseInt(hex,16);
+    return { r: (n>>16)&255, g:(n>>8)&255, b:n&255 };
+  }
 
-    function drawParticles() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = "white";
-      particles.forEach(p => {
-        p.x += p.dx;
-        p.y += p.dy;
-        if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
-        if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-        ctx.stroke();
-      });
-      requestAnimationFrame(drawParticles);
-    }
-    drawParticles();
-
-    renderFiles();
-  </script>
+  resize();
+  step();
+})();
+</script>
 </body>
 </html>
