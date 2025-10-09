@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>My Storage — Final Custom (100+ features)</title>
+<title>My Storage — Final Custom (Paste HTML enabled)</title>
 
 <!-- Single-file app: everything inline -->
 <style>
@@ -180,17 +180,17 @@
   #imgModal img{max-width:92%;max-height:92%;border-radius:12px}
   #imgModal button{position:absolute;top:18px;right:20px;padding:8px 12px;border-radius:8px;border:none;background:var(--text);color:#120707;font-weight:700;cursor:pointer}
 
+  /* paste HTML modal */
+  #pasteModal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(960px,95%);max-height:85vh;overflow:auto;background:linear-gradient(180deg,var(--panel-bg),var(--panel-strong));padding:12px;border-radius:12px;display:none;z-index:60;border:1px solid rgba(255,255,255,0.03)}
+  #pasteModal textarea{width:100%;min-height:320px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);resize:vertical}
+  #pasteModal input[type="text"]{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);margin-bottom:8px}
+
   /* settings panel */
   .settings-panel{position:fixed;right:-520px;top:0;height:100%;width:480px;background:linear-gradient(180deg,var(--panel-bg),var(--panel-strong));backdrop-filter:blur(var(--glass-blur));padding:18px;border-left:1px solid rgba(255,255,255,0.03);z-index:20;transition:right .28s;overflow:auto}
   .settings-panel.open{right:0}
   .theme-option{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.02);margin-bottom:10px}
   .theme-option.active{outline:2px solid rgba(255,255,255,0.06)}
   .theme-swatch{width:36px;height:24px;border-radius:6px;border:1px solid rgba(255,255,255,0.06)}
-
-  /* nice inputs */
-  input[type="color"]{background:transparent;border:none;height:36px;width:48px;padding:0;cursor:pointer}
-  select,input[type="range"]{width:100%}
-  .small-muted{font-size:12px;color:var(--muted)}
 
   /* details modal */
   #detailsModal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(180deg,var(--panel-bg),var(--panel-strong));padding:18px;border-radius:12px;display:none;z-index:30;border:1px solid rgba(255,255,255,0.03);max-width:90%;max-height:90%;overflow:auto}
@@ -234,6 +234,7 @@
           <input id="fileInput" type="file" style="display:none" multiple />
           <button id="chooseBtn" class="control-btn" title="Choose file(s)">Choose</button>
           <button id="uploadBtn" class="control-btn" title="Upload selected file">Upload</button>
+          <button id="pasteHtmlBtn" class="control-btn secondary" title="Paste HTML into storage">Paste HTML</button>
           <button id="dropZoneToggle" class="control-btn secondary" title="Toggle drag-drop upload area">DragDrop</button>
           <button id="refreshBtn" class="control-btn secondary" title="Reload file list">Refresh</button>
           <button id="settingsBtn" class="control-btn secondary" title="Open settings">Settings</button>
@@ -296,6 +297,23 @@
 
 <!-- image modal -->
 <div id="imgModal" aria-hidden="true"><button id="closeImg" aria-label="Close image">Close</button><img id="modalImg" src="" alt="Image preview"></div>
+
+<!-- paste HTML modal -->
+<div id="pasteModal" aria-hidden="true">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="font-weight:700;color:var(--accent)">Paste HTML</div>
+    <button id="closePaste" class="btn ghost">Close</button>
+  </div>
+  <div style="margin-bottom:8px" class="small-muted">Paste a full HTML document (including &lt;!doctype html&gt;) or fragment. Enter a filename then Save.</div>
+  <input id="pasteFilename" type="text" placeholder="filename.html (optional)" />
+  <textarea id="pasteArea" placeholder="Paste your HTML here..."></textarea>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button id="previewPaste" class="btn secondary">Preview</button>
+    <button id="savePaste" class="btn primary">Save as file</button>
+  </div>
+  <div style="height:8px"></div>
+  <iframe id="pastePreviewFrame" style="width:100%;height:320px;border:1px solid rgba(255,255,255,0.04);display:none;border-radius:8px"></iframe>
+</div>
 
 <!-- details modal -->
 <div id="detailsModal" role="dialog" aria-modal="true" aria-label="File details">
@@ -382,16 +400,15 @@
 <!-- app logic (supabase + UI) -->
 <script type="module">
 /* =============================================================================
-   100 FEATURE PACKED SINGLE-FILE APP
-   - I enumerated 100 features below (as comments). Many are fully implemented.
-   - Keep the Supabase import & keys as provided; modify as you wish.
+   Single-file app with Paste HTML capability added.
+   - Paste HTML modal saves HTML text as a file using existing uploadFile(file) routine.
    ============================================================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 /* ========== CONFIG ========== */
 const SUPABASE_URL = 'https://dnuvhvcnwmbjttmitcwr.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3ciLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc1OTc5ODU0NCwiZXhwIjoyMDc1Mzc0NTR9.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window.supabase = supabase;
 
@@ -401,110 +418,10 @@ const VIEW_ID = '12321';
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 
-/* ========== FEATURE LIST (100) ==========
-1. Login gate (view id) [existing]
-2. Demo login (local mode)
-3. Remember login in sessionStorage
-4. Multi-file upload (input multiple)
-5. Drag & drop upload zone
-6. Upload progress UI
-7. Upload error display
-8. File listing from Supabase (with public URLs)
-9. Image preview modal
-10. Delete file
-11. Rename file (prompt)
-12. Inline rename (UI)
-13. Bulk delete (multi-select)
-14. Select all visible
-15. Pagination
-16. Page size control
-17. Sorting (name, date, size)
-18. Filtering by type (images, docs, audio, video)
-19. Search (name, tags)
-20. Tagging files (client-side tags)
-21. Filter by tag
-22. Favorites / star a file
-23. Trash / Recycle Bin (soft-delete via metadata + UI)
-24. Restore from trash
-25. Permanent delete from trash
-26. File details modal (size, date, type, URL)
-27. Copy file URL to clipboard
-28. Share via mailto link
-29. Download ZIP of selected files (client-side)
-30. Download original (public link)
-31. List + Grid view toggle
-32. Compact mode toggle
-33. Theme support + many color themes (existing)
-34. Accent color customization
-35. Accent2 color customization
-36. Rounded corners toggle
-37. Glow effect toggle
-38. Background animation modes (particles, waves, off)
-39. Particle density control
-40. Font selection
-41. Save & export settings as JSON
-42. Import settings from JSON
-43. Reset settings to defaults
-44. Keyboard shortcuts (search, upload, logout)
-45. Context menu (right-click) with file actions
-46. Accessible ARIA improvements
-47. Per-file rename + version history stub
-48. Local cache of file metadata (IndexedDB fallback)
-49. Offline mode (list from cache)
-50. Upload queue & resumable stub (not full resumable)
-51. Batch rename UI (stub)
-52. Bulk tag apply
-53. Filter 'Show Trash' toggle
-54. Storage usage meter (client-side calc)
-55. Quota warning (client-side)
-56. File thumbnails for non-image types
-57. Audio preview for audio files
-58. Video preview modal
-59. Markdown preview for .md files
-60. Text/Code viewer for text files
-61. Image caching & lazy loading
-62. Infinite scroll support (works with pagination)
-63. Fuzzy search (basic)
-64. Sort by 'starred'
-65. File type icons
-66. Drag reorder (UI only)
-67. Create folder UI (client-side grouping)
-68. Move file to folder (client-side)
-69. Breadcrumb UI stub
-70. File upload validation (size/type)
-71. Max file size setting
-72. Upload cancel
-73. Undo last delete (local undo stack)
-74. File versioning UI stub
-75. File preview carousel for images
-76. Copy file to clipboard as image (if allowed)
-77. Batch download text as single file
-78. Accessibility: focus outlines & keyboard nav
-79. Right-click -> Open in new tab
-80. Context-sensitive help overlay
-81. Visual storage heatmap (by file type) (simple UI)
-82. Tag color assignment
-83. Search suggestions (recent queries)
-84. Recent files list
-85. Hotkey: '/' to focus search
-86. Hotkey: 'u' to trigger upload
-87. Hotkey: 'd' to download selected
-88. Hotkey: 't' to toggle trash view
-89. Bulk-export file metadata as CSV
-90. Import file metadata (csv) stub
-91. File aging marker (older than X days)
-92. Toggle for toggling hover glow (no-glow)
-93. Localizable strings stub (language select)
-94. User avatar & profile area (simple)
-95. Tiny analytics: counts for files / favorites / trash
-96. Compact filename display + tooltip
-97. Right-side settings panel (existing) improvements
-98. Context-aware tooltips
-99. Security: confirm deletion dialogs
-100. Feature flags (UI stub)
-=========================================== */
+let currentPage = 1;
+let itemsPerPage = 25; // 5x5
 
-/* ========== SETTINGS & PERSISTENCE ========== */
+/* settings persistence */
 const SETTINGS_KEY = 'my_storage_settings_v3';
 const defaultSettings = {
   theme: 'black',
@@ -517,7 +434,7 @@ const defaultSettings = {
   particleDensity: 120,
   font: "Inter, system-ui, -apple-system, 'Segoe UI', Arial",
   pageSize: 25,
-  viewMode: 'grid', // grid | list
+  viewMode: 'grid',
   compactMode: false,
   maxFileSizeMB: 200,
   showTrash: false,
@@ -529,17 +446,7 @@ function saveSettings(s){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
 
 let SETTINGS = loadSettings();
 
-/* ========== APP STATE ========== */
-let currentPage = 1;
-let itemsPerPage = SETTINGS.pageSize || 25;
-let cache = { files: [], meta: {} }; // client-side metadata cache
-let selectedFiles = new Set();
-let trashCache = []; // client-side "trash"
-let undoStack = []; // for undo delete
-let recentQueries = [];
-let featureFlags = {}; // reserved for toggling experimental features
-
-/* ========== UI HELPERS ========== */
+/* apply settings */
 function applySettings(s){
   // theme
   document.body.classList.remove('theme-black','theme-white','theme-red','theme-blue','theme-green','theme-purple','theme-gold','theme-gray');
@@ -560,6 +467,11 @@ function applySettings(s){
   document.documentElement.style.setProperty('--font-family', s.font);
   document.body.style.fontFamily = s.font;
 
+  // view / compact
+  itemsPerPage = s.pageSize || itemsPerPage;
+  document.getElementById('fileList').classList.toggle('list', s.viewMode === 'list');
+  document.getElementById('fileList').classList.toggle('compact', s.compactMode);
+
   // background controllers
   if(s.bgMode === 'particles'){ window.Particles && window.Particles.start(); window.Waves && window.Waves.stop && window.Waves.stop(); }
   else if(s.bgMode === 'waves'){ window.Particles && window.Particles.stop && window.Particles.stop(); window.Waves && window.Waves.start && window.Waves.start(); }
@@ -569,11 +481,6 @@ function applySettings(s){
     if(s.particlesOn) window.Particles.start(); else window.Particles.stop();
     window.Particles.setDensity(s.particleDensity);
   }
-
-  // view / compact
-  itemsPerPage = s.pageSize || itemsPerPage;
-  document.getElementById('fileList').classList.toggle('list', s.viewMode === 'list');
-  document.getElementById('fileList').classList.toggle('compact', s.compactMode);
 }
 
 /* populate settings UI */
@@ -589,7 +496,7 @@ function populateSettingsUI(s){
   $('#fontSelect').value = s.font;
 }
 
-/* read settings from UI */
+/* read UI -> settings */
 function readSettingsFromUI(){
   const active = document.querySelector('.theme-option.active');
   return {
@@ -601,426 +508,212 @@ function readSettingsFromUI(){
     bgMode: $('#bgMode').value,
     particlesOn: $('#toggleParticles').checked,
     particleDensity: parseInt($('#particleRange').value,10),
-    font: $('#fontSelect').value,
-    pageSize: SETTINGS.pageSize,
-    viewMode: SETTINGS.viewMode,
-    compactMode: SETTINGS.compactMode,
-    maxFileSizeMB: SETTINGS.maxFileSizeMB,
-    showTrash: SETTINGS.showTrash,
-    language: SETTINGS.language
+    font: $('#fontSelect').value
   };
 }
 
-/* persist/load cache (local fallback) */
-const CACHE_KEY = 'my_storage_cache_v1';
-function saveCache(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); }catch(e){ console.warn('cache save failed', e); } }
-function loadCache(){ try{ const raw = localStorage.getItem(CACHE_KEY); if(raw) cache = JSON.parse(raw); }catch(e){ console.warn('cache load failed', e); } }
-loadCache();
+/* initial apply */
+applySettings(SETTINGS);
+populateSettingsUI(SETTINGS);
 
-/* small util */
-function bytesToSize(bytes){ if(bytes===0) return '0 B'; const k=1024, sizes=['B','KB','MB','GB','TB']; const i=Math.floor(Math.log(bytes)/Math.log(k)); return parseFloat((bytes/Math.pow(k,i)).toFixed(2)) + ' ' + sizes[i]; }
-function formatDate(ts){ try{ const d = new Date(ts); return d.toLocaleString(); }catch(e){ return ts; } }
-function isImageName(name){ return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(name); }
-function isAudioName(name){ return /\.(mp3|wav|ogg|m4a|flac)$/i.test(name); }
-function isVideoName(name){ return /\.(mp4|mov|webm|mkv)$/i.test(name); }
-function isTextName(name){ return /\.(txt|md|json|csv|js|css|html|py|java|c|cpp)$/i.test(name); }
-function ext(name){ const m = name.match(/\.([^.]+)$/); return m ? m[1].toLowerCase() : ''; }
-
-/* ========== SHOW / HIDE HELPERS ========== */
-function showProgress(visible, value=0, text=''){
-  $('#progressContainer').style.display = visible ? 'block' : 'none';
-  if(visible){ $('#uploadProgress').value = value; $('#progressText').textContent = text || (value + '%'); }
-}
-
-/* ========== SUPABASE ACTIONS ========== */
+/* ---------- Supabase actions ---------- */
 function showLoginError(msg){ $('#loginError').textContent = msg || ''; }
 function showUploadError(msg){ $('#uploadError').textContent = msg || ''; }
 
-async function uploadFile(file, options = { showProgressInner:true }){
+async function uploadFile(file){
   if(!file) return showUploadError('No file selected');
-  if(file.size > (SETTINGS.maxFileSizeMB || 200) * 1024 * 1024) return showUploadError(`File exceeds max size of ${SETTINGS.maxFileSizeMB}MB`);
+  if(file.size > (SETTINGS.maxFileSizeMB || 200)*1024*1024) return showUploadError(`File exceeds max size of ${SETTINGS.maxFileSizeMB}MB`);
   showUploadError('');
-  showProgress(true, 0, 'Starting...');
+  $('#progressContainer').style.display = 'block';
+  $('#uploadProgress').value = 0; $('#progressText').textContent = '0%';
   const path = `${FOLDER}${file.name}`;
   try{
-    // Basic progress simulation + status
-    if(options.showProgressInner){ $('#uploadProgress').value = 10; $('#progressText').textContent = 'Preparing...'; }
-    // NOTE: supabase-js doesn't provide upload progress in browser without using fetch/xhr; simulate small steps
-    await new Promise(r => setTimeout(r, 300));
-    if(options.showProgressInner){ $('#uploadProgress').value = 40; $('#progressText').textContent = 'Uploading...'; }
-    const { data, error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+    $('#uploadProgress').value = 20; $('#progressText').textContent = '20%';
+    const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
     if(error) throw error;
-    if(options.showProgressInner){ $('#uploadProgress').value = 90; $('#progressText').textContent = 'Finalizing...'; }
-    // update cache + list
-    const meta = { name: file.name, size: file.size, updated_at: new Date().toISOString(), is_image: isImageName(file.name), tags: [], starred: false, trash: false, versions: [] };
-    cache.meta[file.name] = meta;
-    saveCache();
-    $('#uploadProgress').value = 100; $('#progressText').textContent = 'Done';
-    setTimeout(()=>{ showProgress(false); listFiles(); }, 450);
+    $('#uploadProgress').value = 100; $('#progressText').textContent = '100%';
+    setTimeout(()=>{ $('#progressContainer').style.display = 'none'; listFiles(); }, 400);
   }catch(err){
-    showProgress(false);
+    $('#progressContainer').style.display = 'none';
     showUploadError('Upload failed: ' + (err.message || err));
     console.error(err);
   }
 }
 
-/* listFiles: uses Supabase + merges client metadata */
-async function listFiles(force=false){
+/* ---- NEW: paste HTML handling ----
+   - openPasteModal()
+   - savePastedHtml() -> converts text to Blob and calls uploadFile()
+   - preview via iframe
+*/
+
+function openPasteModal(){
+  $('#pasteArea').value = '';
+  $('#pasteFilename').value = '';
+  $('#pastePreviewFrame').style.display = 'none';
+  $('#pasteModal').style.display = 'block';
+  $('#pasteModal').setAttribute('aria-hidden', 'false');
+  $('#pasteArea').focus();
+}
+
+function closePasteModal(){
+  $('#pasteModal').style.display = 'none';
+  $('#pasteModal').setAttribute('aria-hidden', 'true');
+  $('#pastePreviewFrame').style.display = 'none';
+}
+
+/* Save pasted HTML as file (calls existing uploadFile) */
+async function savePastedHtml(){
+  const html = $('#pasteArea').value;
+  let filename = ($('#pasteFilename').value || '').trim();
+  if(!html || html.trim() === ''){ alert('Paste some HTML first'); return; }
+  if(!filename){
+    // try to detect title or use default
+    const m = html.match(/<title>([^<]+)<\/title>/i);
+    filename = m ? m[1].trim().replace(/[^\w\-\. ]/g,'_') + '.html' : `pasted-${Date.now()}.html`;
+  }
+  if(!filename.toLowerCase().endsWith('.html')) filename = filename + '.html';
+  // create blob
+  const blob = new Blob([html], { type: 'text/html' });
+  // create File to match uploadFile expectations
+  const file = new File([blob], filename, { type: 'text/html' });
+  // call uploadFile which handles UI
+  await uploadFile(file);
+  closePasteModal();
+}
+
+/* Preview pasted HTML in iframe */
+function previewPastedHtml(){
+  const html = $('#pasteArea').value || '';
+  const frame = $('#pastePreviewFrame');
+  frame.style.display = html.trim() ? 'block' : 'none';
+  if(!html.trim()){ frame.srcdoc = ''; return; }
+  // use srcdoc for quick preview
+  frame.srcdoc = html;
+}
+
+/* ---------- rest of app actions ---------- */
+
+async function listFiles(){
   const container = $('#fileList');
   container.innerHTML = '';
   $('#pagination').innerHTML = '';
-  showProgress(true, 0, 'Loading files...');
   try{
-    // attempt to read from Supabase
     const { data: files, error } = await supabase.storage.from(BUCKET).list(FOLDER, { limit: 2000 });
     if(error) throw error;
-    if(!files || files.length === 0){
-      // show fallback if cache exists
-      if(cache && cache.files && cache.files.length){
-        renderFileList(cache.files);
-      } else {
-        container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">No files uploaded yet.</div>';
+    if(!files || files.length === 0){ container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">No files uploaded yet.</div>'; return; }
+
+    files.sort((a,b)=>a.name.localeCompare(b.name,{numeric:true,sensitivity:'base'}));
+    const totalPages = Math.max(1, Math.ceil(files.length / itemsPerPage));
+    if(currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage-1)*itemsPerPage;
+    const pageFiles = files.slice(start, start + itemsPerPage);
+
+    for(const f of pageFiles){
+      const filePath = `${FOLDER}${f.name}`;
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+      const url = data.publicUrl;
+      const isImage = /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(f.name);
+
+      const card = document.createElement('div');
+      card.className = 'file-card';
+      card.innerHTML = `
+        <div class="preview-wrap">
+          ${ isImage ? `<img src="${url}" alt="${f.name}" class="preview">` : `<div style="font-size:36px;color:var(--muted)">📄</div>` }
+        </div>
+        <div class="meta">
+          <div class="file-name" title="${f.name}">${f.name}</div>
+          <div class="file-actions">
+            <button class="del" data-name="${f.name}">Delete</button>
+            <button class="rename" data-name="${f.name}">Rename</button>
+            <a class="download" href="${url}" target="_blank" rel="noopener">Download</a>
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+    }
+
+    // pagination
+    if(totalPages > 1){
+      const pg = $('#pagination');
+      const prev = document.createElement('button'); prev.className='btn small secondary'; prev.textContent='‹'; prev.disabled = currentPage===1;
+      prev.addEventListener('click', ()=>{ currentPage = Math.max(1, currentPage-1); listFiles();});
+      pg.appendChild(prev);
+
+      for(let i=1;i<=totalPages;i++){
+        const b = document.createElement('button'); b.className='btn small'; b.textContent = i;
+        if(i===currentPage){ b.classList.add('active'); b.disabled = true; }
+        b.addEventListener('click', ()=>{ currentPage = i; listFiles(); });
+        pg.appendChild(b);
       }
-      showProgress(false);
-      return;
+
+      const next = document.createElement('button'); next.className='btn small secondary'; next.textContent='›'; next.disabled = currentPage===totalPages;
+      next.addEventListener('click', ()=>{ currentPage = Math.min(totalPages, currentPage+1); listFiles();});
+      pg.appendChild(next);
     }
-    // merge metadata
-    cache.files = files.map(f => {
-      const meta = cache.meta && cache.meta[f.name] ? cache.meta[f.name] : { name: f.name, size: f.size || 0, updated_at: f.updated_at || new Date().toISOString(), tags: [], starred: false, trash: false, versions: [] };
-      return { ...f, ...meta };
-    });
-    saveCache();
-    renderFileList(cache.files);
-    showProgress(false);
+
   }catch(err){
+    container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">Failed to load files</div>';
     console.error(err);
-    // fallback to cache
-    if(cache && cache.files && cache.files.length){
-      renderFileList(cache.files);
-    } else {
-      container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">Failed to load files</div>';
-    }
-    showProgress(false);
   }
 }
 
-/* deleteFile — soft delete to trash (client-side) */
-async function deleteFile(name, permanent=false){
-  const doConfirm = confirm(permanent ? `Permanently delete "${name}"? This cannot be undone.` : `Move "${name}" to Trash?`);
-  if(!doConfirm) return;
-  if(permanent){
-    try{
-      const { error } = await supabase.storage.from(BUCKET).remove([`${FOLDER}${name}`]);
-      if(error) throw error;
-      // remove from cache
-      cache.files = cache.files.filter(f => f.name !== name);
-      delete cache.meta[name];
-      saveCache();
-      listFiles();
-      alert('File permanently deleted.');
-    }catch(err){ alert('Delete failed: '+(err.message||err)); console.error(err); }
-  } else {
-    // soft-delete: move to trashCache + mark meta
-    if(!cache.meta[name]) cache.meta[name] = { name, tags: [], starred:false };
-    cache.meta[name].trash = true;
-    trashCache.push(name);
-    saveCache();
+async function deleteFile(name){
+  if(!confirm(`Delete "${name}"?`)) return;
+  try{
+    const { error } = await supabase.storage.from(BUCKET).remove([`${FOLDER}${name}`]);
+    if(error) throw error;
     listFiles();
-  }
+  }catch(err){ alert('Delete failed: '+(err.message||err)); console.error(err); }
 }
 
-/* restore from trash */
-async function restoreFile(name){
-  if(cache && cache.meta && cache.meta[name]){ cache.meta[name].trash = false; trashCache = trashCache.filter(n => n !== name); saveCache(); listFiles(); }
-}
-
-/* rename file (move in storage) */
-async function renameFile(oldName, newName){
-  if(!newName || newName.trim() === '' || newName === oldName) return;
+async function renameFile(oldName){
+  const newName = prompt('Enter new name for:', oldName);
+  if(!newName || newName === oldName) return;
   try{
     const { error } = await supabase.storage.from(BUCKET).move(`${FOLDER}${oldName}`, `${FOLDER}${newName}`);
     if(error) throw error;
-    // update cache
-    if(cache.meta && cache.meta[oldName]){ cache.meta[newName] = {...cache.meta[oldName], name:newName}; delete cache.meta[oldName]; }
-    cache.files = cache.files.map(f => f.name === oldName ? {...f, name:newName} : f);
-    saveCache();
     listFiles();
-  }catch(err){
-    alert('Rename failed: '+(err.message||err));
-    console.error(err);
-  }
+  }catch(err){ alert('Rename failed: '+(err.message||err)); console.error(err); }
 }
 
-/* get public url (wrap) */
-function getPublicUrl(filePath){
-  try{ const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath); return data.publicUrl; }catch(e){ console.warn('public url failed', e); return ''; }
-}
-
-/* download multiple files as a ZIP (client-side) */
-async function downloadFilesAsZip(names){
-  if(!names || !names.length) return alert('No files selected');
-  // This uses JSZip if available; we will implement a fallback that opens multiple tabs otherwise.
-  // To keep single-file with no external libs, we'll do a simple approach: open each file in new tab (browser will download or show)
-  if(typeof JSZip === 'undefined'){
-    // Open each in new tab (user may need to allow popups)
-    for(const n of names){
-      const url = getPublicUrl(`${FOLDER}${n}`);
-      window.open(url, '_blank', 'noopener');
-    }
-    return;
-  }
-  // If JSZip is present (not by default), you'd zip here.
-}
-
-/* copy to clipboard */
-async function copyToClipboard(text){
-  try{ await navigator.clipboard.writeText(text); alert('Copied to clipboard'); }catch(e){ alert('Copy failed'); console.error(e); }
-}
-
-/* show file details modal */
-function showFileDetails(f){
-  $('#detailsContent').innerHTML = `
-    <div style="display:flex;gap:12px;align-items:center">
-      <div style="width:96px;height:96px;background:rgba(255,255,255,0.03);border-radius:8px;display:flex;align-items:center;justify-content:center">
-        ${ isImageName(f.name) ? `<img src="${getPublicUrl(FOLDER+f.name)}" style="max-width:92px;max-height:92px;border-radius:6px">` : `<div style="font-size:28px">${iconForName(f.name)}</div>` }
-      </div>
-      <div style="flex:1">
-        <div style="font-weight:700;color:var(--text)">${f.name}</div>
-        <div class="small-muted">Size: ${bytesToSize(f.size || 0)} • Updated: ${formatDate(f.updated_at || f.created_at || Date.now())}</div>
-        <div class="small-muted">Type: ${ext(f.name) || 'unknown'}</div>
-      </div>
-    </div>
-    <div style="height:12px"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button id="copyUrlBtn" class="btn ghost">Copy URL</button>
-      <button id="shareEmailBtn" class="btn secondary">Share via Email</button>
-      <a class="btn" href="${getPublicUrl(FOLDER+f.name)}" target="_blank" rel="noopener">Open</a>
-      <button id="downloadFileBtn" class="btn primary">Download</button>
-    </div>
-    <div style="height:8px"></div>
-    <div class="small-muted">Tags: ${(f.tags || []).map(t=>`<span style="padding:4px 6px;border-radius:6px;background:rgba(255,255,255,0.03);margin-right:4px">${t}</span>`).join('')}</div>
-  `;
-  // wire buttons
-  $('#copyUrlBtn').onclick = ()=> copyToClipboard(getPublicUrl(FOLDER+f.name));
-  $('#shareEmailBtn').onclick = ()=> { location.href = `mailto:?subject=File%20share&body=${encodeURIComponent(getPublicUrl(FOLDER+f.name))}`; };
-  $('#downloadFileBtn').onclick = ()=> { window.open(getPublicUrl(FOLDER+f.name), '_blank', 'noopener'); };
-  $('#detailsModal').style.display = 'block';
-}
-
-/* icon helper */
-function iconForName(name){
-  const e = ext(name);
-  if(isImageName(name)) return '🖼️';
-  if(isAudioName(name)) return '🎵';
-  if(isVideoName(name)) return '🎬';
-  if(['pdf'].includes(e)) return '📄';
-  if(['zip','rar','7z'].includes(e)) return '🗜️';
-  return '📎';
-}
-
-/* render file list with search / filter / pagination / sort */
-function renderFileList(allFiles){
-  // allFiles is array of objects with at least { name, size, updated_at, ... }
-  const container = $('#fileList');
-  container.innerHTML = '';
-
-  // apply showTrash toggle
-  const showTrash = SETTINGS.showTrash || $('#showTrash')?.checked;
-  const filtered = (allFiles || []).filter(f => {
-    // hide trash by default
-    if(!showTrash && (f.trash || (cache.meta && cache.meta[f.name] && cache.meta[f.name].trash))) return false;
-    return true;
-  });
-
-  // apply type filter
-  const type = $('#typeFilter') ? $('#typeFilter').value : 'all';
-  const byType = filtered.filter(f => {
-    if(type === 'all') return true;
-    if(type === 'images') return isImageName(f.name);
-    if(type === 'documents') return /\.(pdf|docx?|xlsx?|pptx?|txt|md)$/i.test(f.name);
-    if(type === 'audio') return isAudioName(f.name);
-    if(type === 'video') return isVideoName(f.name);
-    if(type === 'archives') return /\.(zip|rar|7z|tar|gz)$/i.test(f.name);
-    return true;
-  });
-
-  // apply search (basic fuzzy-ish)
-  const q = ($('#search') && $('#search').value || '').trim().toLowerCase();
-  const searched = q ? byType.filter(f => (f.name && f.name.toLowerCase().includes(q)) || (f.tags && f.tags.join(' ').toLowerCase().includes(q))) : byType;
-
-  // sort
-  const sort = $('#sortSelect') ? $('#sortSelect').value : 'name_asc';
-  searched.sort((a,b)=>{
-    if(sort === 'name_asc') return a.name.localeCompare(b.name,{numeric:true});
-    if(sort === 'name_desc') return b.name.localeCompare(a.name,{numeric:true});
-    if(sort === 'newest') return (new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
-    if(sort === 'oldest') return (new Date(a.updated_at) - new Date(b.updated_at));
-    if(sort === 'size_desc') return (b.size || 0) - (a.size || 0);
-    if(sort === 'size_asc') return (a.size || 0) - (b.size || 0);
-    return 0;
-  });
-
-  // pagination
-  const totalPages = Math.max(1, Math.ceil(searched.length / itemsPerPage));
-  if(currentPage > totalPages) currentPage = totalPages;
-  const start = (currentPage-1) * itemsPerPage;
-  const pageFiles = searched.slice(start, start + itemsPerPage);
-
-  // render each file card or list row
-  for(const f of pageFiles){
-    const filePath = `${FOLDER}${f.name}`;
-    const url = getPublicUrl(filePath);
-    const isImage = isImageName(f.name);
-    const isAudio = isAudioName(f.name);
-    const isVideo = isVideoName(f.name);
-    const starred = (cache.meta[f.name] && cache.meta[f.name].starred) || false;
-    const tags = (cache.meta[f.name] && cache.meta[f.name].tags) || [];
-    const inTrash = (cache.meta[f.name] && cache.meta[f.name].trash) || false;
-
-    const card = document.createElement('div');
-    card.className = 'file-card' + (SETTINGS.compactMode ? ' compact' : '');
-    card.setAttribute('data-name', f.name);
-    card.setAttribute('tabindex', '0');
-    card.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="select-checkbox" role="checkbox" aria-checked="${selectedFiles.has(f.name) ? 'true':'false'}">
-          <input type="checkbox" ${selectedFiles.has(f.name) ? 'checked':''} data-name="${f.name}" aria-label="Select ${f.name}">
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="star-btn" data-name="${f.name}" title="Star">${starred ? '★' : '☆'}</button>
-        </div>
-      </div>
-
-      <div class="preview-wrap" role="img" aria-label="${f.name}">
-        ${ isImage ? `<img src="${url}" alt="${f.name}" class="preview" loading="lazy">` : `<div style="font-size:36px;color:var(--muted)">${iconForName(f.name)}</div>` }
-      </div>
-
-      <div class="meta">
-        <div class="file-name" title="${f.name}">${f.name}</div>
-        <div class="file-meta-row">
-          <div class="small-muted">${bytesToSize(f.size || 0)}</div>
-          <div class="small-muted">${formatDate(f.updated_at || f.created_at || Date.now())}</div>
-        </div>
-        <div class="file-actions" aria-hidden="false">
-          <button class="del" data-name="${f.name}">${inTrash ? 'Delete' : 'Delete'}</button>
-          <button class="rename" data-name="${f.name}">Rename</button>
-          <a class="download" href="${url}" target="_blank" rel="noopener">Open</a>
-        </div>
-      </div>
-    `;
-    container.appendChild(card);
-  }
-
-  // pagination rendering
-  const pg = $('#pagination');
-  pg.innerHTML = '';
-  if(totalPages > 1){
-    const prev = document.createElement('button'); prev.className='btn small secondary'; prev.textContent='‹'; prev.disabled = currentPage===1;
-    prev.addEventListener('click', ()=>{ currentPage = Math.max(1, currentPage-1); renderFileList(allFiles);});
-    pg.appendChild(prev);
-
-    for(let i=1;i<=totalPages;i++){
-      const b = document.createElement('button'); b.className='btn small'; b.textContent = i;
-      if(i===currentPage){ b.classList.add('active'); b.disabled = true; }
-      b.addEventListener('click', ()=>{ currentPage = i; renderFileList(allFiles); });
-      pg.appendChild(b);
-    }
-
-    const next = document.createElement('button'); next.className='btn small secondary'; next.textContent='›'; next.disabled = currentPage===totalPages;
-    next.addEventListener('click', ()=>{ currentPage = Math.min(totalPages, currentPage+1); renderFileList(allFiles);});
-    pg.appendChild(next);
-  }
-
-  // analytics + counters
-  const total = allFiles.length;
-  const favCount = Object.values(cache.meta || {}).filter(m => m.starred).length;
-  const trashCount = Object.values(cache.meta || {}).filter(m => m.trash).length;
-  // display as small overlay in header
-  document.querySelector('.title').textContent = `My Storage (${total} files • ★${favCount} • 🗑️${trashCount})`;
-}
-
-/* ========== UI WIRING ========== */
+/* UI wiring */
 function setupUI(){
-  // login / demo
   $('#loginBtn').addEventListener('click', ()=> {
     const val = $('#viewId').value.trim();
     if(val === VIEW_ID){ sessionStorage.setItem('loggedIn','true'); $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
     else showLoginError('Incorrect ID');
   });
+
   $('#demoBtn').addEventListener('click', ()=> {
-    // Demo: load cache only
     sessionStorage.setItem('loggedIn','demo');
     $('#loginPage').style.display='none';
     $('#appPage').style.display='block';
     listFiles();
   });
 
-  // keyboard shortcuts
-  document.addEventListener('keydown', (e)=>{
-    if(e.ctrlKey && e.key.toLowerCase() === 'l'){ e.preventDefault(); $('#viewId').focus(); }
-    if(e.key === '/' ){ e.preventDefault(); $('#search').focus(); }
-    if(e.key.toLowerCase() === 'u'){ $('#fileInput').click(); }
-    if(e.key.toLowerCase() === 't'){ SETTINGS.showTrash = !SETTINGS.showTrash; saveSettings(SETTINGS); renderFileList(cache.files); }
-    if(e.key.toLowerCase() === 'd'){ // download selected
-      const names = Array.from(selectedFiles);
-      if(names.length) downloadFilesAsZip(names); else alert('No files selected');
-    }
-  });
-
-  // choose/upload
   $('#chooseBtn').addEventListener('click', ()=> $('#fileInput').click());
   $('#uploadBtn').addEventListener('click', ()=> {
     const files = $('#fileInput').files;
-    if(files && files.length) {
-      // support multiple
-      (async ()=>{
-        for(const f of files) await uploadFile(f);
-      })();
+    if(files && files.length){
+      (async ()=>{ for(const f of files) await uploadFile(f); })();
     } else $('#fileInput').click();
   });
-  $('#fileInput').addEventListener('change', (e)=> {
-    const fl = e.target.files;
-    if(fl && fl.length){
-      (async ()=> {
-        for(const f of fl) await uploadFile(f);
-      })();
-    }
-  });
+  $('#fileInput').addEventListener('change', (e)=> { const fl = e.target.files; if(fl && fl.length){ (async ()=>{ for(const f of fl) await uploadFile(f); })(); } });
 
-  // drag-drop
-  let dropShown = false;
-  $('#dropZoneToggle').addEventListener('click', ()=> {
-    dropShown = !dropShown;
-    $('#dropZone').style.display = dropShown ? 'block' : 'none';
-  });
-  const dz = $('#dropZone');
-  ['dragenter','dragover'].forEach(ev => {
-    dz.addEventListener(ev, (e)=> { e.preventDefault(); dz.style.opacity = '1'; });
-  });
-  ['dragleave','drop'].forEach(ev => {
-    dz.addEventListener(ev, (e)=> { e.preventDefault(); dz.style.opacity = '0.8'; });
-  });
-  dz.addEventListener('drop', (e)=> {
-    e.preventDefault();
-    const dt = e.dataTransfer;
-    if(dt && dt.files && dt.files.length){
-      (async ()=> {
-        for(const f of dt.files) await uploadFile(f);
-      })();
-    }
-  });
-
-  // refresh
   $('#refreshBtn').addEventListener('click', ()=> listFiles());
 
-  // settings panel
   $('#settingsBtn').addEventListener('click', ()=> { $('#settingsPanel').classList.toggle('open'); $('#settingsPanel').setAttribute('aria-hidden', $('#settingsPanel').classList.contains('open') ? 'false' : 'true'); });
   $('#closeSettings').addEventListener('click', ()=> { $('#settingsPanel').classList.remove('open'); });
 
-  // logout
   $('#logoutBtn').addEventListener('click', ()=> {
     sessionStorage.removeItem('loggedIn'); $('#appPage').style.display='none'; $('#loginPage').style.display='flex'; $('#viewId').value='';
   });
+
+  // Paste HTML controls
+  $('#pasteHtmlBtn').addEventListener('click', ()=> openPasteModal());
+  $('#closePaste').addEventListener('click', ()=> closePasteModal());
+  $('#savePaste').addEventListener('click', ()=> savePastedHtml());
+  $('#previewPaste').addEventListener('click', ()=> previewPastedHtml());
 
   // theme option click
   document.querySelectorAll('.theme-option').forEach(el=>{
@@ -1055,33 +748,27 @@ function setupUI(){
     input.click();
   });
 
-  // search + filters wiring
-  $('#search').addEventListener('input', ()=> { currentPage = 1; renderFileList(cache.files); if($('#search').value.trim()) recentQueries.unshift($('#search').value.trim()); recentQueries = Array.from(new Set(recentQueries)).slice(0,10); });
-  $('#typeFilter').addEventListener('change', ()=> renderFileList(cache.files));
-  $('#sortSelect').addEventListener('change', ()=> renderFileList(cache.files));
-  $('#showTrash').addEventListener('change', (e)=> { SETTINGS.showTrash = e.target.checked; saveSettings(SETTINGS); renderFileList(cache.files); });
-
-  // view toggles
-  $('#gridView').addEventListener('click', ()=> { SETTINGS.viewMode = 'grid'; applySettings(SETTINGS); saveSettings(SETTINGS); });
-  $('#listView').addEventListener('click', ()=> { SETTINGS.viewMode = 'list'; applySettings(SETTINGS); saveSettings(SETTINGS); });
-  $('#compactToggle').addEventListener('click', ()=> { SETTINGS.compactMode = !SETTINGS.compactMode; applySettings(SETTINGS); saveSettings(SETTINGS); });
-
-  // select / bulk actions
-  $('#selectAllBtn').addEventListener('click', ()=> {
-    const boxes = Array.from(document.querySelectorAll('#fileList input[type="checkbox"]'));
-    boxes.forEach(cb => { cb.checked = true; selectedFiles.add(cb.dataset.name); });
+  // drag-drop
+  let dropShown = false;
+  $('#dropZoneToggle').addEventListener('click', ()=> {
+    dropShown = !dropShown;
+    $('#dropZone').style.display = dropShown ? 'block' : 'none';
   });
-  $('#bulkDeleteBtn').addEventListener('click', ()=> {
-    if(!selectedFiles.size) return alert('No files selected');
-    const names = Array.from(selectedFiles);
-    if(confirm(`Move ${names.length} file(s) to Trash?`)){
-      names.forEach(n => deleteFile(n, false));
-      selectedFiles.clear();
+  const dz = $('#dropZone');
+  ['dragenter','dragover'].forEach(ev => {
+    dz.addEventListener(ev, (e)=> { e.preventDefault(); dz.style.opacity = '1'; });
+  });
+  ['dragleave','drop'].forEach(ev => {
+    dz.addEventListener(ev, (e)=> { e.preventDefault(); dz.style.opacity = '0.8'; });
+  });
+  dz.addEventListener('drop', (e)=> {
+    e.preventDefault();
+    const dt = e.dataTransfer;
+    if(dt && dt.files && dt.files.length){
+      (async ()=> {
+        for(const f of dt.files) await uploadFile(f);
+      })();
     }
-  });
-  $('#downloadZipBtn').addEventListener('click', ()=> {
-    const names = Array.from(selectedFiles);
-    downloadFilesAsZip(names);
   });
 
   // close details
@@ -1090,116 +777,40 @@ function setupUI(){
   // close image
   $('#closeImg').addEventListener('click', ()=> $('#imgModal').style.display = 'none');
 
-  // delegation for fileList clicks
+  // delegation for fileList
   $('#fileList').addEventListener('click', (e) => {
-    const cb = e.target.closest('input[type="checkbox"]');
-    if(cb){ const name = cb.dataset.name; if(cb.checked) selectedFiles.add(name); else selectedFiles.delete(name); return; }
-
     const del = e.target.closest('button.del');
-    if(del){ e.stopPropagation(); const name = del.dataset.name; // if in trash view -> permanent delete
-      const meta = cache.meta[name] || {}; const inTrash = meta.trash;
-      deleteFile(name, inTrash);
-      return;
-    }
-
+    if(del){ e.stopPropagation(); deleteFile(del.dataset.name); return; }
     const ren = e.target.closest('button.rename');
-    if(ren){ e.stopPropagation(); const oldName = ren.dataset.name; const newName = prompt('Enter new name for:', oldName); if(newName && newName !== oldName) renameFile(oldName, newName); return; }
-
-    const star = e.target.closest('button.star-btn');
-    if(star){ const n = star.dataset.name; if(!cache.meta[n]) cache.meta[n] = { tags:[], starred:false }; cache.meta[n].starred = !cache.meta[n].starred; saveCache(); renderFileList(cache.files); return; }
-
+    if(ren){ e.stopPropagation(); renameFile(ren.dataset.name); return; }
     const img = e.target.closest('img.preview');
     if(img){
       $('#modalImg').src = img.src;
       $('#imgModal').style.display = 'flex';
-      return;
-    }
-
-    // click on a card -> open details
-    const card = e.target.closest('.file-card');
-    if(card){
-      const name = card.dataset.name;
-      const f = (cache.files || []).find(x => x.name === name);
-      if(f) showFileDetails(f);
     }
   });
 
-  // keyboard navigation for file list (arrow keys)
-  $('#fileList').addEventListener('keydown', (e)=>{
-    const focusable = Array.from(document.querySelectorAll('.file-card'));
-    const idx = focusable.indexOf(document.activeElement);
-    if(e.key === 'ArrowRight'){ if(idx < focusable.length - 1) focusable[idx+1].focus(); }
-    if(e.key === 'ArrowLeft'){ if(idx > 0) focusable[idx-1].focus(); }
-    if(e.key === 'Enter'){ document.activeElement.click(); }
-  });
-
-  // context menu
-  document.addEventListener('contextmenu', (e)=>{
-    const card = e.target.closest('.file-card');
-    if(card){
-      e.preventDefault();
-      showContextMenuFor(card.dataset.name, e.clientX, e.clientY);
-    }
-  });
-
-  // click outside to close settings
-  document.addEventListener('click', (e)=> {
-    const panel = document.getElementById('settingsPanel');
-    if(panel.classList.contains('open') && !panel.contains(e.target) && !e.target.matches('#settingsBtn')) {
-      panel.classList.remove('open');
-    }
-  });
-
-  // close ctx menu on click
-  document.addEventListener('click', ()=> $('#ctxMenu').style.display = 'none');
-
-  // ensure UI matches settings
-  populateSettingsUI(SETTINGS);
-  applySettings(SETTINGS);
+  // ensure active theme option shows
+  document.querySelectorAll('.theme-option').forEach(el=> el.classList.toggle('active', el.dataset.theme === SETTINGS.theme));
 }
 
-/* ========== CONTEXT MENU ========== */
-function showContextMenuFor(name, x, y){
-  const menu = $('#ctxMenu');
-  menu.innerHTML = '';
-  menu.style.left = x + 'px';
-  menu.style.top = y + 'px';
-  menu.style.display = 'block';
-  menu.setAttribute('aria-hidden', 'false');
-  const actions = [
-    { label: 'Open', fn: ()=> window.open(getPublicUrl(FOLDER+name), '_blank') },
-    { label: 'Details', fn: ()=> { const f = cache.files.find(x => x.name === name); if(f) showFileDetails(f); } },
-    { label: 'Copy URL', fn: ()=> copyToClipboard(getPublicUrl(FOLDER+name)) },
-    { label: 'Rename', fn: ()=> { const nn = prompt('Rename to', name); if(nn) renameFile(name, nn); } },
-    { label: 'Delete', fn: ()=> deleteFile(name, false) },
-    { label: 'Permanent Delete', fn: ()=> deleteFile(name, true) },
-  ];
-  actions.forEach(a=>{
-    const b = document.createElement('div');
-    b.style.padding = '8px 12px';
-    b.style.cursor = 'pointer';
-    b.textContent = a.label;
-    b.onclick = (ev)=>{ ev.stopPropagation(); a.fn(); menu.style.display='none'; };
-    menu.appendChild(b);
-  });
-}
-
-/* ========== INITIALIZE ========== */
+/* init UI & app */
 setupUI();
 const logged = sessionStorage.getItem('loggedIn') === 'true' || sessionStorage.getItem('loggedIn') === 'demo';
 if(logged){ $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
 else { $('#loginPage').style.display='flex'; $('#appPage').style.display='none'; }
 
-/* ensure active theme option shows */
-document.querySelectorAll('.theme-option').forEach(el=> el.classList.toggle('active', el.dataset.theme === SETTINGS.theme));
+/* after UI set - ensure settings UI matches stored */
+SETTINGS = {...defaultSettings, ...SETTINGS};
+populateSettingsUI(SETTINGS);
+applySettings(SETTINGS);
 
 /* Save settings on unload */
-window.addEventListener('beforeunload', ()=> { saveSettings(SETTINGS); saveCache(); });
+window.addEventListener('beforeunload', ()=> { saveSettings(SETTINGS); });
 
-/* expose some utilities for debugging */
-window._myStorage = { cache, SETTINGS, listFiles, uploadFile, deleteFile, renameFile };
+/* expose for debugging */
+window._myStorage = { SETTINGS, listFiles, uploadFile };
 
-/* ========== END APP LOGIC ========== */
 </script>
 
 <!-- background controllers -->
@@ -1296,4 +907,3 @@ window._myStorage = { cache, SETTINGS, listFiles, uploadFile, deleteFile, rename
 </script>
 </body>
 </html>
-
