@@ -3,154 +3,228 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>STORAGE</title>
+<title>My Storage — Redesigned</title>
 
-<!-- Supabase ESM -->
+<!-- Single-file app: Supabase ESM -->
 <script type="module">
-/* We'll load supabase inside the module script below for app logic */
+/* empty placeholder: main module loaded later inline */
 </script>
 
 <style>
+  /* -------------------- THEME VARS -------------------- */
   :root{
-    --bg-black: #000000;
-    --card: #0b0b0b;
-    --accent: #c23b3b; /* subtle red accent for some buttons */
+    --bg: #000000;
+    --panel: rgba(255,255,255,0.03);
+    --panel-strong: rgba(255,255,255,0.04);
+    --accent: #ff4c4c; /* red accent */
+    --muted: #a8a8a8;
     --white: #ffffff;
-    --muted: #9a9a9a;
-    --radius: 12px;
+    --glass-blur: 10px;
+    --radius: 14px;
+    --card-height: 170px; /* card height (image + actions area) */
+    --max-width: 1200px;
   }
-  html,body{height:100%;margin:0;background:var(--bg-black);color:var(--white);font-family:Inter, "Segoe UI", system-ui, sans-serif;overflow:hidden;}
-  /* Background canvas */
-  #bgCanvas{position:fixed;inset:0;z-index:0;display:block;}
-  /* App wrapper above canvas */
-  .app-root{position:relative;z-index:2;height:100%;display:flex;align-items:center;justify-content:center;padding:28px;box-sizing:border-box;}
-  .container{width:100%;max-width:1200px;display:flex;flex-direction:column;gap:14px;}
 
-  /* LOGIN CENTERED POPUP */
-  #loginPage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;background:rgba(0,0,0,0.45);}
-  .login-box{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:36px;border-radius:14px;border:1px solid rgba(255,255,255,0.03);text-align:center;width:360px;}
-  .login-box h2{margin:0 0 10px;color:var(--white);}
-  .input{width:100%;padding:12px;border-radius:10px;border:none;background:#0f0f0f;color:var(--white);outline:none;margin-bottom:12px;}
-  .btn{background:var(--accent);color:#120707;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;}
-  .btn.secondary{background:rgba(255,255,255,0.06);color:var(--white);}
-  .btn.small{padding:6px 10px;font-size:13px;}
-  .error{color:#ff9b9b;margin-top:8px;font-size:13px;min-height:18px;}
+  /* Light theme override class (applied to body) */
+  body.theme-light {
+    --bg: #f6f6f6;
+    --panel: rgba(0,0,0,0.04);
+    --panel-strong: rgba(0,0,0,0.06);
+    --accent: #1b1b1b;
+    --muted: #333333;
+    --white: #111111;
+  }
 
-  /* Header */
-  .header{display:flex;justify-content:space-between;align-items:center;background:transparent;padding:8px 4px;}
-  .title{font-size:20px;font-weight:800;color:var(--white);}
-  .controls{display:flex;gap:8px;align-items:center;}
-  .choose{background:linear-gradient(90deg,var(--accent),#ff6b6b);color:#140707;border:none;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:700;}
-  .choose.secondary{background:rgba(255,255,255,0.06);color:var(--white);padding:6px 10px;}
-  .choose.white{background:var(--white);color:#120707;}
+  /* Red theme override */
+  body.theme-red {
+    --bg: #120707;
+    --panel: rgba(255,255,255,0.02);
+    --panel-strong: rgba(255,255,255,0.03);
+    --accent: #ff4c4c;
+    --muted: #d5bdbd;
+    --white: #fff;
+  }
 
-  /* Grid wrapper rectangle */
-  .grid-wrap{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,0.03);height:calc(100vh - 180px);display:flex;flex-direction:column;gap:12px;}
-  #fileList{flex:1;display:grid;grid-template-columns: repeat(5, 1fr);grid-auto-rows: 1fr;gap:12px;padding:8px;overflow:auto;}
+  /* -------------------- LAYOUT -------------------- */
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);font-family:Inter, "Segoe UI", system-ui, -apple-system, Arial; color:var(--white);overflow:hidden}
 
-  /* File card: horizontal-leaning rectangle visually but we want consistent ratio;
-     user asked final: square-ish rectangles; here we do cards with image on top and actions under.
-  */
+  /* canvas background layer */
+  #bgCanvas{position:fixed;inset:0;z-index:0;display:block;background:var(--bg)}
+
+  /* app root */
+  .app-root{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;}
+
+  /* container */
+  .container{width:100%;max-width:var(--max-width);display:flex;flex-direction:column;gap:14px;}
+
+  /* -------------------- LOGIN OVERLAY -------------------- */
+  #loginPage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:6;background:rgba(0,0,0,0.55);}
+  .login-box{
+    width:360px;background:linear-gradient(180deg,var(--panel),var(--panel-strong));
+    padding:34px;border-radius:var(--radius);backdrop-filter:blur(var(--glass-blur));border:1px solid rgba(255,255,255,0.03);text-align:center;
+  }
+  .login-box h2{margin:0 0 8px;color:var(--accent);font-size:20px}
+  .input{width:100%;padding:12px;border-radius:10px;border:none;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--white);margin-bottom:12px;outline:none}
+  .login-actions{display:flex;gap:8px;justify-content:center}
+  .btn{cursor:pointer;border:none;padding:10px 14px;border-radius:10px;font-weight:700}
+  .btn.primary{background:linear-gradient(90deg,var(--accent),#ff6b6b);color:#120707}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
+  .login-error{color:#ff9999;margin-top:8px;min-height:18px}
+
+  /* -------------------- HEADER -------------------- */
+  .header{display:flex;justify-content:space-between;align-items:center;padding:12px 8px}
+  .title{font-size:20px;font-weight:800;color:var(--accent)}
+  .controls{display:flex;gap:8px;align-items:center}
+
+  .control-btn{background:linear-gradient(90deg,var(--accent),#ff6b6b);color:#120707;padding:10px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:700}
+  .control-btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--white)}
+  .control-btn.white{background:var(--white);color:#120707}
+
+  /* file area panel (frosted) */
+  .grid-wrap{background:linear-gradient(180deg,var(--panel),var(--panel-strong));padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(var(--glass-blur));height:calc(100vh - 160px);display:flex;flex-direction:column;gap:12px}
+
+  /* file grid: 5 columns x 5 visible rows (25 items) */
+  #fileList{flex:1;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:var(--card-height);gap:12px;padding:8px;overflow:auto}
+
+  /* -------------------- FILE CARD -------------------- */
   .file-card{
-    background:var(--card);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:8px;align-items:stretch;transition: box-shadow .15s, transform .12s;
-    border:1px solid rgba(255,255,255,0.02);
+    background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.02));
+    border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;transition:transform .12s, box-shadow .12s;position:relative;border:1px solid rgba(255,255,255,0.02)
   }
-  .file-card:hover{ box-shadow: 0 6px 30px rgba(255,255,255,0.12); transform: translateY(-4px); }
-  .preview{width:100%;height:calc(100% - 72px);object-fit:cover;border-radius:10px;cursor:pointer;background:#060606;}
-  .file-name{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;}
-  .file-actions{display:flex;gap:8px;align-items:center;padding:0 4px;justify-content:space-between;}
-  .file-actions .left{display:flex;gap:8px;}
-  .file-actions button, .file-actions a{flex:0 0 auto;padding:8px 8px;border-radius:8px;border:none;background:var(--white);color:#111;font-weight:700;cursor:pointer;text-decoration:none;}
-  .file-actions .del{background:#9b1f1f;color:var(--white);}
-  .file-actions button:hover, .file-actions a:hover{filter:brightness(0.95);}
+
+  /* white glow on hover */
+  .file-card:hover{transform:translateY(-6px);box-shadow:0 14px 40px rgba(255,255,255,0.10)}
+
+  .file-card .preview{
+    width:100%;height:calc(var(--card-height) - 80px);object-fit:cover;border-radius:8px;background:#060606;cursor:pointer;display:block
+  }
+
+  .file-name{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
+
+  .file-actions{display:flex;align-items:center;justify-content:space-between;padding:0 6px}
+  .file-actions .left{display:flex;gap:8px}
+  .file-actions button, .file-actions a{
+    padding:8px 10px;border-radius:8px;border:none;background:var(--white);color:#111;font-weight:700;cursor:pointer;text-decoration:none;
+  }
+  .file-actions button.del{background:#9b1f1f;color:#fff}
+  .file-actions button.rename{background:var(--white);color:#111}
+  .file-actions a.download{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white);padding:8px 10px}
 
   /* pagination */
-  #pagination{display:flex;gap:8px;justify-content:center;padding:8px;}
-  #pagination .btn.active{opacity:0.7;pointer-events:none;}
+  #pagination{display:flex;gap:8px;justify-content:center;padding:10px}
 
-  /* progress modal center */
-  #progressContainer{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--card);padding:14px;border-radius:12px;display:none;z-index:6;border:1px solid rgba(255,255,255,0.03);}
+  /* progress popup */
+  #progressContainer{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel-strong);padding:12px;border-radius:10px;display:none;z-index:9;border:1px solid rgba(255,255,255,0.03)}
 
   /* image modal */
-  #imgModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:7;}
-  #imgModal img{max-width:92%;max-height:92%;border-radius:12px;}
-  #imgModal button{position:absolute;top:20px;right:24px;padding:8px 12px;border-radius:8px;border:none;background:var(--white);color:#120707;font-weight:700;cursor:pointer;}
+  #imgModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:9}
+  #imgModal img{max-width:92%;max-height:92%;border-radius:12px}
+  #imgModal button{position:absolute;top:18px;right:20px;padding:8px 12px;border-radius:8px;border:none;background:var(--white);color:#120707;font-weight:700;cursor:pointer}
 
-  /* small screens: reduce columns */
-  @media (max-width:1200px){ #fileList{grid-template-columns:repeat(4,1fr);} }
-  @media (max-width:920px){ #fileList{grid-template-columns:repeat(3,1fr);} }
-  @media (max-width:640px){ #fileList{grid-template-columns:repeat(2,1fr);} .login-box{width:300px;} }
+  /* settings side tab (hidden by default) */
+  .settings-panel{
+    position:fixed;right:-360px;top:0;height:100%;width:360px;background:linear-gradient(180deg,var(--panel),var(--panel-strong));backdrop-filter:blur(var(--glass-blur));padding:20px;border-left:1px solid rgba(255,255,255,0.03);z-index:12;transition:right .28s;
+  }
+  .settings-panel.open{right:0}
+  .settings-panel h3{margin:0 0 12px;color:var(--muted)}
+  .theme-option{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.02);margin-bottom:10px}
+  .theme-swatch{width:36px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,0.06)}
 
-  /* scrollbar small */
-  #fileList::-webkit-scrollbar{width:10px}
-  #fileList::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:8px}
+  /* responsive smaller screens */
+  @media (max-width:1200px){ #fileList{grid-template-columns:repeat(4,1fr)} }
+  @media (max-width:920px){ #fileList{grid-template-columns:repeat(3,1fr)} .settings-panel{width:320px} }
+  @media (max-width:640px){ #fileList{grid-template-columns:repeat(2,1fr)} .login-box{width:300px} }
 </style>
 </head>
-<body>
-  <!-- Canvas background -->
-  <canvas id="bgCanvas"></canvas>
+<body class="theme-black">
 
-  <!-- App UI -->
-  <div class="app-root">
-    <div class="container">
-      <!-- Login overlay (centered) -->
-      <div id="loginPage">
-        <div class="login-box">
-          <h2 style="color:var(--white);margin-bottom:6px">Enter View ID</h2>
-          <input id="viewId" class="input" type="password" placeholder="••••" />
-          <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
-            <button id="loginBtn" class="btn small">Log In</button>
-          </div>
-          <div id="loginError" class="error"></div>
+<canvas id="bgCanvas"></canvas>
+
+<div class="app-root">
+  <div class="container">
+    <!-- LOGIN OVERLAY -->
+    <div id="loginPage">
+      <div class="login-box">
+        <h2>Enter View ID</h2>
+        <input id="viewId" class="input" type="password" placeholder="••••" />
+        <div class="login-actions" style="margin-top:8px">
+          <button id="loginBtn" class="btn primary">Log In</button>
+          <button id="demoBtn" class="btn ghost">Use 12321</button>
+        </div>
+        <div id="loginError" class="login-error"></div>
+      </div>
+    </div>
+
+    <!-- APP -->
+    <div id="appPage" style="display:none;">
+      <div class="header">
+        <div class="title">My Storage</div>
+        <div class="controls">
+          <input id="fileInput" type="file" style="display:none" />
+          <button id="chooseBtn" class="control-btn">Choose</button>
+          <button id="uploadBtn" class="control-btn">Upload</button>
+          <button id="refreshBtn" class="control-btn secondary">Refresh</button>
+          <button id="settingsBtn" class="control-btn secondary">Settings</button>
+          <button id="logoutBtn" class="control-btn secondary">Logout</button>
         </div>
       </div>
 
-      <!-- Main app (hidden until login) -->
-      <div id="appPage" style="display:none;">
-        <div class="header">
-          <div class="title">My Storage</div>
-          <div class="controls">
-            <input id="fileInput" type="file" style="display:none" />
-            <button id="chooseBtn" class="choose">Choose</button>
-            <button id="uploadBtn" class="btn small">Upload</button>
-            <button id="refreshBtn" class="choose secondary">Refresh</button>
-            <button id="logoutBtn" class="choose secondary">Logout</button>
-          </div>
-        </div>
-
-        <div class="grid-wrap">
-          <div id="fileList" aria-live="polite"></div>
-          <div id="pagination"></div>
-        </div>
+      <div class="grid-wrap">
+        <div id="fileList" aria-live="polite"></div>
+        <div id="pagination"></div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- upload progress -->
-  <div id="progressContainer">
-    <progress id="uploadProgress" max="100" value="0" style="width:260px;"></progress>
-    <div id="progressText" style="color:var(--muted);margin-top:8px;text-align:center">0%</div>
-    <div id="uploadError" style="color:#ff8b8b;margin-top:6px"></div>
+<!-- progress -->
+<div id="progressContainer">
+  <progress id="uploadProgress" max="100" value="0" style="width:320px;"></progress>
+  <div id="progressText" style="color:var(--muted);text-align:center;margin-top:8px">0%</div>
+  <div id="uploadError" style="color:#ff8b8b;margin-top:8px"></div>
+</div>
+
+<!-- image modal -->
+<div id="imgModal"><button id="closeImg">Close</button><img id="modalImg" src=""></div>
+
+<!-- settings panel -->
+<div id="settingsPanel" class="settings-panel">
+  <h3>Settings</h3>
+  <div style="margin-bottom:12px">Theme</div>
+  <div id="themeBlack" class="theme-option" data-theme="black">
+    <div class="theme-swatch" style="background:black"></div>
+    <div>Black (Default)</div>
   </div>
-
-  <!-- image modal -->
-  <div id="imgModal"><button id="closeImg">Close</button><img id="modalImg" src=""></div>
+  <div id="themeWhite" class="theme-option" data-theme="light">
+    <div class="theme-swatch" style="background:#f6f6f6;border:1px solid #ddd"></div>
+    <div>White</div>
+  </div>
+  <div id="themeRed" class="theme-option" data-theme="red">
+    <div class="theme-swatch" style="background:linear-gradient(90deg,#ff4c4c,#ff6b6b)"></div>
+    <div>Red Accent</div>
+  </div>
+  <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0" />
+  <div style="font-size:13px;color:var(--muted)">Particle density</div>
+  <input id="particleRange" type="range" min="20" max="240" value="120" style="width:100%;margin-top:8px" />
+  <div style="height:14px"></div>
+  <button id="closeSettings" class="btn ghost" style="width:100%">Close Settings</button>
+</div>
 
 <script type="module">
+/* ----------------------- APP LOGIC (Supabase + UI) ----------------------- */
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const SUPABASE_URL = 'https://dnuvhvcnwmbjttmitcwr.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudXZodmNud21ianR0bWl0Y3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3OTg1NDQsImV4cCI6MjA3NTM3NDU0NH0.KhDCEqwTX-1h2EUT7cy3AvoJoTt7ElCD80Boxf-uVHI';
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-window.supabase = supabase; // expose for console if wanted
+window.supabase = supabase;
 
 const BUCKET = 'my-storage';
 const FOLDER = 'uploads/';
 const VIEW_ID = '12321';
 
 const $ = s => document.querySelector(s);
-
 let currentPage = 1;
 const itemsPerPage = 25; // 5x5
 
@@ -163,12 +237,10 @@ async function uploadFile(file){
   $('#progressContainer').style.display = 'block';
   $('#uploadProgress').value = 0;
   $('#progressText').textContent = '0%';
-
   const path = `${FOLDER}${file.name}`;
   try {
-    // note: Supabase JS upload doesn't provide progress callbacks with this method
-    // show a simple animated progress: jump to 40% then 100% on success
-    $('#uploadProgress').value = 30; $('#progressText').textContent = '30%';
+    // fake progress: show activity while uploading
+    $('#uploadProgress').value = 25; $('#progressText').textContent = '25%';
     const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
     if(error) throw error;
     $('#uploadProgress').value = 100; $('#progressText').textContent = '100%';
@@ -185,14 +257,14 @@ async function listFiles(){
   container.innerHTML = '';
   $('#pagination').innerHTML = '';
   try {
-    const { data: files, error } = await supabase.storage.from(BUCKET).list(FOLDER, { limit:1000 });
+    const { data: files, error } = await supabase.storage.from(BUCKET).list(FOLDER, { limit: 1000 });
     if(error) throw error;
     if(!files || files.length === 0){
-      container.innerHTML = '<div class="empty">No files uploaded yet.</div>';
+      container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">No files uploaded yet.</div>';
       return;
     }
 
-    files.sort((a,b) => a.name.localeCompare(b.name, {numeric:true, sensitivity:'base'}));
+    files.sort((a,b)=>a.name.localeCompare(b.name,{numeric:true,sensitivity:'base'}));
     const totalPages = Math.max(1, Math.ceil(files.length / itemsPerPage));
     if(currentPage > totalPages) currentPage = totalPages;
     const start = (currentPage - 1) * itemsPerPage;
@@ -208,10 +280,10 @@ async function listFiles(){
       card.className = 'file-card';
       card.innerHTML = `
         <div class="left">
-          ${ isImage ? `<img src="${url}" alt="${f.name}" class="preview">` : `<div style="height:140px;display:flex;align-items:center;justify-content:center;font-size:28px">📄</div>` }
+          ${ isImage ? `<img src="${url}" alt="${f.name}" class="preview">` : `<div style="height:120px;display:flex;align-items:center;justify-content:center;font-size:28px">📄</div>` }
         </div>
-        <div class="right">
-          <div class="file-name">${f.name}</div>
+        <div class="right" style="margin-top:6px">
+          <div class="file-name" title="${f.name}">${f.name}</div>
           <div class="file-actions">
             <div class="left">
               <button class="del" data-name="${f.name}">Delete</button>
@@ -224,7 +296,7 @@ async function listFiles(){
       container.appendChild(card);
     }
 
-    // pagination buttons
+    // pagination
     if(totalPages > 1){
       const pg = $('#pagination');
       const prev = document.createElement('button'); prev.className='btn small secondary'; prev.textContent='‹'; prev.disabled = currentPage===1;
@@ -244,7 +316,7 @@ async function listFiles(){
     }
 
   } catch(err){
-    container.innerHTML = '<div class="empty">Failed to load files</div>';
+    container.innerHTML = '<div class="empty" style="padding:20px;color:var(--muted)">Failed to load files</div>';
     console.error(err);
   }
 }
@@ -262,7 +334,7 @@ async function deleteFile(name){
 }
 
 async function renameFile(oldName){
-  const newName = prompt('Enter new name for: ', oldName);
+  const newName = prompt('Enter new name for:', oldName);
   if(!newName || newName === oldName) return;
   try {
     const { error } = await supabase.storage.from(BUCKET).move(`${FOLDER}${oldName}`, `${FOLDER}${newName}`);
@@ -274,44 +346,57 @@ async function renameFile(oldName){
   }
 }
 
-/* ----------------- UI and event delegation ----------------- */
+/* ------------------ UI wiring & delegation ------------------ */
 function setupUI(){
   // login
   $('#loginBtn').addEventListener('click', ()=> {
     const val = $('#viewId').value.trim();
-    if(val === VIEW_ID){ sessionStorage.setItem('loggedIn', 'true'); $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
+    if(val === VIEW_ID){ sessionStorage.setItem('loggedIn','true'); $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
     else showLoginError('Incorrect ID');
   });
   $('#demoBtn').addEventListener('click', ()=> { $('#viewId').value = VIEW_ID; $('#loginBtn').click(); });
 
-  // choose button triggers file input
+  // choose / upload
   $('#chooseBtn').addEventListener('click', ()=> $('#fileInput').click());
-
-  // upload button triggers currently selected file (or choose input)
   $('#uploadBtn').addEventListener('click', ()=> {
     const f = $('#fileInput').files[0];
     if(f) uploadFile(f);
-    else { $('#fileInput').click(); }
+    else $('#fileInput').click();
   });
-
-  // file input change
-  $('#fileInput').addEventListener('change', (e)=> {
-    const f = e.target.files[0];
-    if(f) uploadFile(f);
-  });
+  $('#fileInput').addEventListener('change', (e)=> { const f = e.target.files[0]; if(f) uploadFile(f); });
 
   // refresh
   $('#refreshBtn').addEventListener('click', ()=> listFiles());
 
+  // settings panel
+  const settingsPanel = $('#settingsPanel');
+  $('#settingsBtn').addEventListener('click', ()=> settingsPanel.classList.toggle('open'));
+  $('#closeSettings').addEventListener('click', ()=> settingsPanel.classList.remove('open'));
+
   // logout
   $('#logoutBtn').addEventListener('click', ()=> {
-    sessionStorage.removeItem('loggedIn');
-    $('#appPage').style.display = 'none';
-    $('#loginPage').style.display = 'flex';
-    $('#viewId').value = '';
+    sessionStorage.removeItem('loggedIn'); $('#appPage').style.display='none'; $('#loginPage').style.display='flex'; $('#viewId').value='';
   });
 
-  // fileList delegation for delete/rename/download and image click
+  // theme options
+  document.querySelectorAll('.theme-option').forEach(el=>{
+    el.addEventListener('click', ()=> {
+      const theme = el.dataset.theme;
+      document.body.classList.remove('theme-light','theme-red'); // clear
+      if(theme === 'light') document.body.classList.add('theme-light');
+      else if(theme === 'red') document.body.classList.add('theme-red');
+      else document.body.classList.remove('theme-light','theme-red');
+    });
+  });
+
+  // particle density control
+  $('#particleRange').addEventListener('input', (e) => {
+    const v = parseInt(e.target.value,10);
+    // call bg controller to update density
+    window.Particles && window.Particles.setDensity(v);
+  });
+
+  // delegation for fileList: delete/rename/download & open image
   $('#fileList').addEventListener('click', (e) => {
     const del = e.target.closest('button.del');
     if(del){ e.stopPropagation(); deleteFile(del.dataset.name); return; }
@@ -328,123 +413,121 @@ function setupUI(){
   $('#closeImg').addEventListener('click', ()=> $('#imgModal').style.display = 'none');
 }
 
-/* ------------------- initial render: show login overlay ------------------ */
-function init(){
+/* -------------------- start -------------------- */
+(function init(){
   setupUI();
   const logged = sessionStorage.getItem('loggedIn') === 'true';
-  if(logged){ $('#loginPage').style.display = 'none'; $('#appPage').style.display = 'block'; listFiles(); }
-  else { $('#loginPage').style.display = 'flex'; $('#appPage').style.display = 'none'; }
-}
-
-init();
+  if(logged){ $('#loginPage').style.display='none'; $('#appPage').style.display='block'; listFiles(); }
+  else { $('#loginPage').style.display='flex'; $('#appPage').style.display='none'; }
+})();
 </script>
 
 <script>
-/* ------------------ WHITE PARTICLE NETWORK ON BLACK CANVAS ------------------ */
-/* Self-contained; reacts to mouse and hovers near particles */
+/* ------------------ PARTICLE BACKGROUND (white lines on black) ------------------ */
+/* Exposed controller for density adjustments: window.Particles.setDensity(n) */
 (() => {
   const canvas = document.getElementById('bgCanvas');
-  const ctx = canvas.getContext('2d', { alpha: true });
+  const ctx = canvas.getContext('2d', { alpha:true });
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
   let W = innerWidth, H = innerHeight;
-  let DPR = Math.max(1, devicePixelRatio || 1);
-  canvas.width = W * DPR; canvas.height = H * DPR;
-  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-
-  let mouse = { x: -9999, y: -9999, active: false };
-  const POINTS = Math.max(60, Math.min(220, Math.round((W*H)/90000)));
-  let points = [];
-
-  function rand(min,max){ return Math.random()*(max-min)+min; }
+  let pts = [];
+  let density = parseInt(document.getElementById('particleRange').value || 120, 10) || 120;
 
   function resize(){
     W = innerWidth; H = innerHeight;
     canvas.width = W * DPR; canvas.height = H * DPR;
     canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
     ctx.setTransform(DPR,0,0,DPR,0,0);
-    // recreate density based on size
     createPoints();
   }
 
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+
   function createPoints(){
-    points = [];
-    const count = POINTS;
+    pts = [];
+    const count = Math.max(30, Math.min(300, Math.round(density * ( (W*H) / (1366*768) )) ));
     for(let i=0;i<count;i++){
-      points.push({
-        x: rand(0, W),
-        y: rand(0, H),
+      pts.push({
+        x: rand(0,W),
+        y: rand(0,H),
         vx: rand(-0.25,0.25),
         vy: rand(-0.25,0.25),
-        r: rand(0.8,1.8)
+        r: rand(0.8,1.6)
       });
     }
   }
 
+  let mouse = { x:-9999, y:-9999, active:false };
+
   function step(){
     ctx.clearRect(0,0,W,H);
-    // draw lines between close points (white)
-    for(let i=0;i<points.length;i++){
-      const a = points[i];
-      // move
-      a.x += a.vx; a.y += a.vy;
-      if(a.x < -30) a.x = W + 30; if(a.x > W + 30) a.x = -30;
-      if(a.y < -30) a.y = H + 30; if(a.y > H + 30) a.y = -30;
+
+    // move points
+    for(const p of pts){
+      p.x += p.vx; p.y += p.vy;
+      if(p.x < -30) p.x = W + 30;
+      if(p.x > W + 30) p.x = -30;
+      if(p.y < -30) p.y = H + 30;
+      if(p.y > H + 30) p.y = -30;
     }
 
-    // lines
-    for(let i=0;i<points.length;i++){
-      for(let j=i+1;j<points.length;j++){
-        const a = points[i], b = points[j];
+    // draw connection lines
+    for(let i=0;i<pts.length;i++){
+      for(let j=i+1;j<pts.length;j++){
+        const a = pts[i], b = pts[j];
         const dx = a.x - b.x, dy = a.y - b.y;
         const d = Math.sqrt(dx*dx + dy*dy);
-        if(d < 160){
-          let alpha = 0.22 * (1 - d/160);
-          // increase alpha if near mouse
+        if(d < 140){
+          let alpha = 0.26 * (1 - d/140);
+          // strong reaction near mouse
           if(mouse.active){
-            const mdx = (a.x + b.x)/2 - mouse.x;
-            const mdy = (a.y + b.y)/2 - mouse.y;
-            const md = Math.sqrt(mdx*mdx + mdy*mdy);
-            if(md < 220) alpha += (1 - md/220) * 0.35;
+            const mx = (a.x + b.x)/2 - mouse.x, my = (a.y + b.y)/2 - mouse.y;
+            const md = Math.sqrt(mx*mx + my*my);
+            if(md < 220) alpha += (1 - md/220)*0.35;
           }
           ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
           ctx.lineWidth = 0.9;
           ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
+          ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         }
       }
     }
 
-    // points
-    for(const p of points){
-      let sz = p.r;
+    // draw dots
+    for(const p of pts){
+      let size = p.r;
       if(mouse.active){
         const dx = p.x - mouse.x, dy = p.y - mouse.y;
         const d = Math.sqrt(dx*dx + dy*dy);
-        if(d < 160){
-          const add = (160 - d)/160;
-          p.x += (dx/d || 0) * add * 1.8; // slight repel
-          p.y += (dy/d || 0) * add * 1.8;
-          sz = p.r + add*1.6;
+        if(d < 200){
+          const push = (200 - d)/200;
+          p.x += (dx/d||0) * push * 1.8;
+          p.y += (dy/d||0) * push * 1.8;
+          size = p.r + push*1.6;
         }
       }
       ctx.beginPath();
-      ctx.fillStyle = `rgba(255,255,255,${0.9 - sz*0.25})`;
-      ctx.arc(p.x, p.y, sz, 0, Math.PI*2);
-      ctx.fill();
+      ctx.fillStyle = `rgba(255,255,255,${0.85 - size*0.25})`;
+      ctx.arc(p.x, p.y, size, 0, Math.PI*2); ctx.fill();
     }
 
     requestAnimationFrame(step);
   }
 
   window.addEventListener('resize', resize);
-  window.addEventListener('mousemove', (e)=>{ mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; });
-  window.addEventListener('mouseout', ()=>{ mouse.x = -9999; mouse.y = -9999; mouse.active = false; });
+  window.addEventListener('mousemove', (e)=>{ mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true });
+  window.addEventListener('mouseout', ()=>{ mouse.active = false; mouse.x = -9999; mouse.y = -9999 });
 
-  createPoints();
+  // expose controller
+  window.Particles = {
+    setDensity: (v) => { density = v; createPoints(); }
+  };
+
+  // init
+  resize();
   step();
 })();
 </script>
+
 </body>
 </html>
